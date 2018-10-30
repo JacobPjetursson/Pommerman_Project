@@ -7,36 +7,46 @@ from collections import deque
 import numpy as np
 import torch
 
+import algo
+import hyperparams
 from envs import make_vec_envs
 from models import create_policy
 from rollout_storage import RolloutStorage
-import hyperparams
-from ppo import PPO
+from replay_storage import ReplayStorage
 from visualize import visdom_plot
 
 args = hyperparams.args()
+
+assert args.algo in ['a2c', 'a2c-sil', 'ppo', 'ppo-sil', 'acktr']
+if args.recurrent_policy:
+    assert args.algo in ['a2c', 'ppo'], \
+        'Recurrent policy is not implemented for ACKTR or SIL'
+
 update_factor = args.num_steps * args.num_processes
 num_updates = int(args.num_frames) // update_factor
 lr_update_schedule = None if args.lr_schedule is None else args.lr_schedule // update_factor
 
-# FIXME - is this needed?
-try:
-    os.makedirs(args.log_dir)
-except OSError:
-    files = glob.glob(os.path.join(args.log_dir, '*.monitor.csv'))
-    for f in files:
-        os.remove(f)
-
-eval_log_dir = args.log_dir + "_eval"
-try:
-    os.makedirs(eval_log_dir)
-except OSError:
-    files = glob.glob(os.path.join(eval_log_dir, '*.monitor.csv'))
-    for f in files:
-        os.remove(f)
+torch.manual_seed(args.seed)
+if args.cuda:
+    torch.cuda.manual_seed(args.seed)
+np.random.seed(args.seed)
 
 
 def main():
+    try:
+        os.makedirs(args.log_dir)
+    except OSError:
+        files = glob.glob(os.path.join(args.log_dir, '*.monitor.csv'))
+        for f in files:
+            os.remove(f)
+
+    eval_log_dir = args.log_dir + "_eval"
+    try:
+        os.makedirs(eval_log_dir)
+    except OSError:
+        files = glob.glob(os.path.join(eval_log_dir, '*.monitor.csv'))
+        for f in files:
+            os.remove(f)
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if args.cuda else "cpu")
 
@@ -60,22 +70,59 @@ def main():
     else:
         eval_envs = None
 
+    # FIXME this is very specific to Pommerman env right now
     actor_critic = create_policy(
         train_envs.observation_space,
         train_envs.action_space,
         name='pomm',
         nn_kwargs={
-            'batch_norm': True,
-            'recurrent': False,
+            'batch_norm': False if args.algo == 'acktr' else True,
+            'recurrent': args.recurrent_policy,
             'hidden_size': 512,
         },
         train=True)
-    ppo = PPO(
-        actor_critic, args.clip_param, args.ppo_epoch, args.num_mini_batch,
-        args.value_loss_coef, args.entropy_coef,
-        lr=args.lr, lr_schedule=lr_update_schedule,
-        eps=args.eps,
-        max_grad_norm=args.max_grad_norm)
+
+    actor_critic.to(device)
+
+    if args.algo.startswith('a2c'):
+        agent = algo.A2C_ACKTR(
+            actor_critic, args.value_loss_coef,
+            args.entropy_coef,
+            lr=args.lr, lr_schedule=lr_update_schedule,
+            eps=args.eps, alpha=args.alpha,
+            max_grad_norm=args.max_grad_norm)
+    elif args.algo.startswith('ppo'):
+        agent = algo.PPO(
+            actor_critic, args.clip_param, args.ppo_epoch, args.num_mini_batch,
+            args.value_loss_coef, args.entropy_coef,
+            lr=args.lr, lr_schedule=lr_update_schedule,
+            eps=args.eps,
+            max_grad_norm=args.max_grad_norm)
+    elif args.algo == 'acktr':
+        agent = algo.A2C_ACKTR(
+            actor_critic, args.value_loss_coef,
+            args.entropy_coef,
+            acktr=True)
+
+    if args.algo.endswith('sil'):
+        agent = algo.SIL(
+            agent,
+            update_ratio=args.sil_update_ratio,
+            epochs=args.sil_epochs,
+            batch_size=args.sil_batch_size,
+            value_loss_coef=args.sil_value_loss_coef or args.value_loss_coef,
+            entropy_coef=args.sil_entropy_coef or args.entropy_coef)
+        replay = ReplayStorage(
+            5e5,
+            args.num_processes,
+            args.gamma,
+            0.1,
+            train_envs.observation_space.shape,
+            train_envs.action_space,
+            actor_critic.recurrent_hidden_state_size,
+            device=device)
+    else:
+        replay = None
 
     rollouts = RolloutStorage(
         args.num_steps, args.num_processes,
@@ -109,6 +156,13 @@ def main():
             # If done then clean the history of observations.
             masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done], device=device)
             rollouts.insert(obs, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
+            if replay is not None:
+                replay.insert(
+                    rollouts.obs[step],
+                    rollouts.recurrent_hidden_states[step],
+                    action,
+                    reward,
+                    done)
 
         with torch.no_grad():
             next_value = actor_critic.get_value(rollouts.obs[-1],
@@ -117,7 +171,7 @@ def main():
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
-        value_loss, action_loss, dist_entropy, other_metrics = ppo.update(rollouts, j, None)
+        value_loss, action_loss, dist_entropy, other_metrics = agent.update(rollouts, j, replay)
 
         rollouts.after_update()
 
@@ -152,6 +206,11 @@ def main():
                          np.min(episode_rewards),
                          np.max(episode_rewards), dist_entropy,
                          value_loss, action_loss), end=', ' if other_metrics else '\n')
+            if 'sil_value_loss' in other_metrics:
+                print("SIL value/action loss {:.1f}/{:.1f}.".format(
+                    other_metrics['sil_value_loss'],
+                    other_metrics['sil_action_loss']
+                ))
 
         if args.eval_interval and len(episode_rewards) > 1 and j > 0 and j % args.eval_interval == 0:
             eval_episode_rewards = []
@@ -183,6 +242,7 @@ def main():
                                   args.algo, args.num_frames)
             except IOError:
                 pass
+
 
 if __name__ == "__main__":
     main()

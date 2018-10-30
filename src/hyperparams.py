@@ -19,7 +19,7 @@ class args:
         self.eval_interval = 1000 # default 1000
         self.entropy_coef = 0.01
         self.num_steps = 5 # used?
-        self.num_frames =  1e3 # default 5e7
+        self.num_frames = 5e7 # default 5e7
         self.eps = 1e-5 # epsilon?
         self.max_grad_norm = 0.5
         self.num_processes = 8 # default 16
@@ -31,6 +31,7 @@ class args:
         self.seed = 0
         self.no_norm = True # default False
         self.add_timestep = False
+        self.recurrent_policy = False
 
         # To use visdom, type 'python -m visdom.server' in command line
         self.vis = True
