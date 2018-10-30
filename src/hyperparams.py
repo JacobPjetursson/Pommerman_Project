@@ -4,12 +4,13 @@ import torch
 
 class args:
     def __init__(self):
-        self.algo = 'ppo'
+        self.algo = 'a2c'
         self.lr = 2.5e-4
         self.lr_schedule = 25000000 # default None
         self.gamma = 0.99
+        self.alpha = 0.99 # default 0.99
         self.value_loss_coef = 0.5
-        self.ppo_epoch = 1 # default 4
+        self.ppo_epoch = 4 # default 4
         self.num_mini_batch = 32
         self.clip_param = 0.2
         self.num_stack = 1
@@ -19,7 +20,7 @@ class args:
         self.eval_interval = 1000 # default 1000
         self.entropy_coef = 0.01
         self.num_steps = 5 # used?
-        self.num_frames = 5e7 # default 5e7
+        self.num_frames = 5e6 # default 5e7
         self.eps = 1e-5 # epsilon?
         self.max_grad_norm = 0.5
         self.num_processes = 8 # default 16
@@ -33,8 +34,8 @@ class args:
         self.add_timestep = False
         self.recurrent_policy = False
 
-        # To use visdom, type 'python -m visdom.server' in command line
-        self.vis = True
+        # To use visdom, type 'python -m visdom.server' in command line. Not working with windows for some reason
+        self.vis = False
         self.vis_interval = 100
         self.port = 8097
 

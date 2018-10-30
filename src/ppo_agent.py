@@ -156,14 +156,41 @@ class PommermanEnvWrapper(gym.Wrapper):
         return agent_obs
 
 
-class PPOAgent(pommerman.agents.BaseAgent):
+class TrainingAgent(pommerman.agents.BaseAgent):
 
     def __init__(self, character=pommerman.characters.Bomber):
-        super(PPOAgent, self).__init__(character)
+        super(TrainingAgent, self).__init__(character)
 
     def act(self, obs, action_space):
         """This agent has its own way of inducing actions."""
         return None
+
+
+def make_env(config):
+    training_agent = TrainingAgent()
+    agent_list = [
+        training_agent,
+        pommerman.agents.SimpleAgent(),
+        pommerman.agents.SimpleAgent(),
+        pommerman.agents.SimpleAgent(),
+    ]
+    if config == "PommeFFAPartialFast-v0":
+        env_spec = _ffa_partial_fast_env()
+        env = pommerman.envs.v0.Pomme(**env_spec['env_kwargs'])
+        for id, agent in enumerate(agent_list):
+            assert isinstance(agent, pommerman.agents.BaseAgent)
+            # NOTE: This is IMPORTANT so that the agent character is initialized
+            agent.init_agent(id, env_spec['game_type'])
+        env.set_agents(agent_list)
+        #env.set_init_game_state(game_state_file)
+        #env.set_render_mode(render_mode)
+    else:
+        env = pommerman.make(config, agent_list)
+    env.set_training_agent(training_agent.agent_id)
+    env.set_init_game_state(None)
+    return PommermanEnvWrapper(env)
+
+
 
 
 def _ffa_partial_env():
@@ -208,28 +235,3 @@ def _ffa_partial_fast_env():
     }
     agent = pommerman.characters.Bomber
     return locals()
-
-
-def make_env(config):
-    training_agent = PPOAgent()
-    agent_list = [
-        training_agent,
-        pommerman.agents.SimpleAgent(),
-        pommerman.agents.SimpleAgent(),
-        pommerman.agents.SimpleAgent(),
-    ]
-    if config == "PommeFFAPartialFast-v0":
-        env_spec = _ffa_partial_fast_env()
-        env = pommerman.envs.v0.Pomme(**env_spec['env_kwargs'])
-        for id, agent in enumerate(agent_list):
-            assert isinstance(agent, pommerman.agents.BaseAgent)
-            # NOTE: This is IMPORTANT so that the agent character is initialized
-            agent.init_agent(id, env_spec['game_type'])
-        env.set_agents(agent_list)
-        #env.set_init_game_state(game_state_file)
-        #env.set_render_mode(render_mode)
-    else:
-        env = pommerman.make(config, agent_list)
-    env.set_training_agent(training_agent.agent_id)
-    env.set_init_game_state(None)
-    return PommermanEnvWrapper(env)

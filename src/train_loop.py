@@ -33,6 +33,7 @@ np.random.seed(args.seed)
 
 
 def main():
+    #### Below is originally outside of main, should not matter though. It's here to prevent crashes in windows
     try:
         os.makedirs(args.log_dir)
     except OSError:
@@ -47,6 +48,7 @@ def main():
         files = glob.glob(os.path.join(eval_log_dir, '*.monitor.csv'))
         for f in files:
             os.remove(f)
+    ##################################################################
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if args.cuda else "cpu")
 
@@ -226,6 +228,9 @@ def main():
                         obs, eval_recurrent_hidden_states, eval_masks, deterministic=True)
 
                 # Obser reward and next obs
+                # Rendering shows simplified environment
+                # eval_envs.render()
+
                 obs, reward, done, infos = eval_envs.step(action)
                 eval_masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done], device=device)
                 for info in infos:
