@@ -7,7 +7,6 @@ import torch
 from gym.spaces.box import Box
 
 from helpers.monitor import Monitor
-from helpers.atari_wrappers import make_atari, wrap_deepmind
 from helpers.vec_env import VecEnvWrapper
 from helpers.vec_env.dummy_vec_env import DummyVecEnv
 from helpers.vec_env.subproc_vec_env import SubprocVecEnv
@@ -34,32 +33,14 @@ except ImportError:
     pass
 
 
-def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_resets=False):
+def make_env(env_id, seed, rank, add_timestep=False):
     def _thunk():
-        if env_id.startswith("Pomme"):
-            env = envs.pommerman.make_env(env_id)
-        elif env_id.startswith("dm"):
-            _, domain, task = env_id.split('.')
-            env = dm_control2gym.make(domain_name=domain, task_name=task)
-        else:
-            env = gym.make(env_id)
-        is_atari = hasattr(gym.envs, 'atari') and isinstance(
-            env.unwrapped, gym.envs.atari.atari_env.AtariEnv)
-        if is_atari:
-            env = make_atari(env_id)
+        env = envs.pommerman.make_env(env_id)
         env.seed(seed + rank)
-
         obs_shape = env.observation_space.shape
         if add_timestep and len(
                 obs_shape) == 1 and str(env).find('TimeLimit') > -1:
             env = AddTimestep(env)
-
-        if log_dir is not None:
-            env = Monitor(env, os.path.join(log_dir, str(rank)),
-                          allow_early_resets=allow_early_resets)
-
-        if is_atari:
-            env = wrap_deepmind(env)
 
         # If the input has shape (W,H,3), wrap for PyTorch convolutions
         obs_shape = env.observation_space.shape
@@ -72,10 +53,9 @@ def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_r
 
 
 def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
-                  log_dir=None, add_timestep=False, device='cpu', allow_early_resets=False, eval=False):
+                  add_timestep=False, device='cpu', eval=False):
 
-    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets)
-                for i in range(num_processes)]
+    envs = [make_env(env_name, seed, i, add_timestep) for i in range(num_processes)]
 
     if len(envs) > 1:
         envs = SubprocVecEnv(envs)
