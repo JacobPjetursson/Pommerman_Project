@@ -20,7 +20,7 @@ class ConvNet4(nn.Module):
         self.flattened_size = num_channels * (input_shape[1] - 4) * (input_shape[2] - 4)
         self.drop_prob = 0.2
 
-        self.conv1 = nn.Conv2d(input_shape[0], num_channels, 3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(input_shape[0], num_channels, 3, stride=(1, 1), padding=1)
         if dilation:
             self.conv2 = nn.Conv2d(num_channels, num_channels, 3, stride=1, dilation=2, padding=2)
         else:
@@ -33,6 +33,7 @@ class ConvNet4(nn.Module):
             self.bn2 = nn.BatchNorm2d(num_channels)
             self.bn3 = nn.BatchNorm2d(num_channels)
             self.bn4 = nn.BatchNorm2d(num_channels)
+
         else:
             self.bn1 = lambda x: x
             self.bn2 = lambda x: x
@@ -55,10 +56,11 @@ class ConvNet4(nn.Module):
         x = self.conv4(x)
         x = self.bn4(x)
         x = self.activation_fn(x)
+
         x = x.view(-1, self.flattened_size)
         x = self.fc1(x)
         x = self.activation_fn(x)
-        #x = F.dropout(x, p=self.drop_prob, training=self.training)
+        # x = F.dropout(x, p=self.drop_prob, training=self.training)
         out = self.fc2(x)
 
         return out
@@ -74,7 +76,7 @@ class PommNet(NNBase):
         bs = 11
         self.other_shape = [3]
         input_channels = (obs_shape[0] - self.other_shape[0]) // (bs*bs)
-        self.image_shape = [input_channels, bs, bs]
+        self.image_shape = [3, bs, bs]
         assert np.prod(obs_shape) >= np.prod(self.image_shape)
 
         self.common_conv = ConvNet4(
@@ -82,35 +84,23 @@ class PommNet(NNBase):
             output_size=hidden_size,
             batch_norm=batch_norm)
 
-        self.common_mlp = nn.Sequential(
-            nn.Linear(self.other_shape[0], hidden_size//4),
-            nn.ReLU(),
-            nn.Linear(hidden_size//4, hidden_size//4),
-            nn.ReLU()
-        )
-
-        self.actor = nn.Linear(hidden_size + hidden_size//4, hidden_size)
+        self.actor = nn.Linear(hidden_size, hidden_size)
 
         self.critic = nn.Sequential(
-            nn.Linear(hidden_size + hidden_size//4, 1),
+            nn.Linear(hidden_size, 1),
             nn.Tanh()
         )
 
-    def forward(self, inputs, rnn_hxs, masks):
-        inputs_image = inputs[:, :-self.other_shape[0]].view([-1] + self.image_shape)
-        inputs_other = inputs[:, -self.other_shape[0]:]
+    def forward(self, inputs):
+        x_test = inputs.reshape((-1, 3, 11, 11))
+        # inputs_image = inputs[:, :-self.other_shape[0]].view([-1] + self.image_shape)
+        #       print(inputs_image.size)
+        # inputs_other = inputs[:, -self.other_shape[0]:]
 
-        x_conv = self.common_conv(inputs_image)
-        x_mlp = self.common_mlp(inputs_other)
-        x = torch.cat([x_conv, x_mlp], dim=1)
+        x = self.common_conv(x_test)
         # x = x_conv + x_mlp
-
-        if self.is_recurrent:
-            x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
 
         out_actor = self.actor(x)
         out_value = self.critic(x)
 
-        return out_value, out_actor, rnn_hxs
-
-
+        return out_value, out_actor

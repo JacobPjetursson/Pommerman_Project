@@ -28,11 +28,11 @@ class Policy(nn.Module):
         """Size of rnn_hx."""
         return self.nn.recurrent_hidden_state_size
 
-    def forward(self, inputs, rnn_hxs, masks):
+    def forward(self, inputs):
         raise NotImplementedError
 
-    def act(self, inputs, rnn_hxs, masks, deterministic=False):
-        value, actor_features, rnn_hxs = self.nn(inputs, rnn_hxs, masks)
+    def act(self, inputs, deterministic=False):
+        value, actor_features = self.nn(inputs)
         dist = self.dist(actor_features)
 
         if deterministic:
@@ -43,17 +43,17 @@ class Policy(nn.Module):
         action_log_probs = dist.log_probs(action)
         _ = dist.entropy().mean()
 
-        return value, action, action_log_probs, rnn_hxs
+        return value, action, action_log_probs
 
-    def get_value(self, inputs, rnn_hxs, masks):
-        value, _, _ = self.nn(inputs, rnn_hxs, masks)
+    def get_value(self, inputs):
+        value, _, _ = self.nn(inputs)
         return value
 
-    def evaluate_actions(self, inputs, rnn_hxs, masks, action):
-        value, actor_features, rnn_hxs = self.nn(inputs, rnn_hxs, masks)
+    def evaluate_actions(self, inputs, action):
+        value, actor_features = self.nn(inputs)
         dist = self.dist(actor_features)
 
         action_log_probs = dist.log_probs(action)
         dist_entropy = dist.entropy().mean()
 
-        return value, action_log_probs, dist_entropy, rnn_hxs
+        return value, action_log_probs, dist_entropy
