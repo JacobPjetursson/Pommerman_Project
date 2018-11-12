@@ -70,6 +70,7 @@ class PommNet(NNBase):
     def __init__(self, obs_shape, recurrent=False, hidden_size=512, batch_norm=True):
         super(PommNet, self).__init__(recurrent, hidden_size, hidden_size)
         self.obs_shape = obs_shape
+        self.device = torch.device('cuda:0')
 
         # FIXME hacky, recover input shape from flattened observation space
         # assuming an 11x11 board and 3 non spatial features
@@ -83,15 +84,21 @@ class PommNet(NNBase):
             input_shape=self.image_shape,
             output_size=hidden_size,
             batch_norm=batch_norm)
+        self.common_conv.cuda()
+        self.common_conv = self.common_conv.cuda()
 
         self.actor = nn.Linear(hidden_size, hidden_size)
+        self.actor = self.actor.cuda()
 
         self.critic = nn.Sequential(
             nn.Linear(hidden_size, 1),
             nn.Tanh()
         )
+        self.critic = self.critic.cuda()
 
     def forward(self, inputs):
+        inputs = inputs.cuda()
+
         x_test = inputs.reshape((-1, 3, 11, 11))
         # inputs_image = inputs[:, :-self.other_shape[0]].view([-1] + self.image_shape)
         #       print(inputs_image.size)
@@ -101,6 +108,6 @@ class PommNet(NNBase):
         # x = x_conv + x_mlp
 
         out_actor = self.actor(x)
-        out_value = self.critic(x)
+        out_critic = self.critic(x)
 
-        return out_value, out_actor
+        return out_critic, out_actor

@@ -1,28 +1,42 @@
 import pommerman
 from pommerman import agents
 
+from gym.spaces import Discrete
 import PytorchAgent1
 
 
 def main():
     agent_list = [
-        PytorchAgent1.PytorchAgent(),
-        PytorchAgent1.PytorchAgent(),
-        PytorchAgent1.PytorchAgent(),
-        PytorchAgent1.PytorchAgent()
+        agents.RandomAgent(),
+        agents.SimpleAgent(),
+        agents.RandomAgent(),
+        PytorchAgent1.PytorchAgent() #BLACKMAN, TOP RIGTH CORNER
     ]
     # Make the "Free-For-All" environment using the agent list
-    env = pommerman.make('PommeFFACompetition-v0', agent_list)
+    env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
 
-    for i_episode in range(10):
+    total_rew = 0
+
+    for i_episode in range(500):
+
         state = env.reset()
         done = False
-        while not done:
-            env.render()
+        hmm = 0
+        while not done and hmm == 0:
+            if i_episode % 10 == 0:
+                env.render()
             actions = env.act(state)
             state, reward, done, info = env.step(actions)
-            agent_list[3].step(reward[3])
-        print('Episode {} finished'.format(i_episode))
+
+            #Train the agent
+            agent_list[3].model_step(state[3], reward[3])
+            hmm = reward[3]
+        if i_episode % 10 == 0:
+            env.render()
+        if reward[3] == 1:
+            total_rew = total_rew + 1
+
+        print('Episode {} finished, {}, {}'.format(i_episode, total_rew, float(total_rew)/(i_episode+1) ))
     env.close()
 
 

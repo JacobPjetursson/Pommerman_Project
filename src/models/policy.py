@@ -10,6 +10,8 @@ class Policy(nn.Module):
         assert isinstance(nn, torch.nn.Module)
         self.nn = nn
 
+        self.deterministic = False
+
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
             self.dist = Categorical(self.nn.output_size, num_outputs)
@@ -18,6 +20,10 @@ class Policy(nn.Module):
             self.dist = DiagGaussian(self.nn.output_size, num_outputs)
         else:
             raise NotImplementedError
+        self.dist = self.dist.cuda()
+
+    def set_deterministic(self, determ):
+        self.deterministic = determ
 
     @property
     def is_recurrent(self):
@@ -31,19 +37,19 @@ class Policy(nn.Module):
     def forward(self, inputs):
         raise NotImplementedError
 
-    def act(self, inputs, deterministic=False):
-        value, actor_features = self.nn(inputs)
-        dist = self.dist(actor_features)
+    def act(self, inputs):
+        critic_value, actor_value = self.nn(inputs)
+        dist = self.dist(actor_value)
 
-        if deterministic:
+        if self.deterministic:
             action = dist.mode()
         else:
             action = dist.sample()
 
         action_log_probs = dist.log_probs(action)
-        _ = dist.entropy().mean()
+        #_ = dist.entropy().mean()
 
-        return value, action, action_log_probs
+        return critic_value, action, action_log_probs
 
     def get_value(self, inputs):
         value, _, _ = self.nn(inputs)
