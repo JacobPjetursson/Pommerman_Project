@@ -4,13 +4,13 @@ from pommerman import agents
 from gym.spaces import Discrete
 import PytorchAgent1
 
-import math
+import time
 
 def main():
     agent_list = [
-        agents.SimpleAgent(),
-        agents.SimpleAgent(),
-        agents.SimpleAgent(),
+        agents.PlayerAgent(),
+        agents.PlayerAgent(),
+        agents.PlayerAgent(),
         PytorchAgent1.PytorchAgent() #BLACKMAN, TOP RIGTH CORNER
     ]
     # Make the "Free-For-All" environment using the agent list
@@ -18,13 +18,13 @@ def main():
 
     total_rew = 0
 
-    for i_episode in range(500):
+    for i_episode in range(10):
 
         state = env.reset()
         done = False
         hmm = 0
         while not done and hmm == 0:
-            if i_episode % 5 == 0:
+            if i_episode % 1 == 0:
                 env.render()
             actions = env.act(state)
             state, reward, done, info = env.step(actions)
@@ -32,7 +32,7 @@ def main():
             #Train the agent
             agent_list[3].model_step(state[3], reward[3])
             hmm = reward[3]
-        if i_episode % 5 == 0:
+        if i_episode % 1 == 0:
             env.render()
         if reward[3] == 1:
             total_rew = total_rew + 1
