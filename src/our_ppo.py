@@ -5,17 +5,18 @@ class PPO():
     def __init__(self, policy, lr):
 
         self.policy = policy
+#        self.critic = critic
 
         self.lr = lr
         self.clip_param = 0.2
 
-        self.optimizer = optim.Adam(policy.parameters(), lr=lr)
+        self.optimizer_policy = optim.Adam(policy.parameters(), lr=lr, weight_decay=1e-5)
+#        self.optimizer_critic = optim.Adam(critic.parameters(), lr=lr, weight_decay=1e-5)
 
     def set_deterministic(self, bo):
         self.policy.set_deterministic(bo)
 
     def update(self, states, critic_values, rewards, actions, action_log_probs):
-        loss = 0
         for i in range(len(actions)):
             state = states[i]
             action = actions[i]
@@ -30,12 +31,14 @@ class PPO():
             surr2 = torch.clamp(ratio, 1.0-self.clip_param, 1.0+self.clip_param) * (reward - critic_value)
 
             actor_loss = - torch.min(surr1, surr2).mean()
-            critic_loss = (reward - new_critic_value).pow(2).mean()
+            critic_loss = (reward - new_critic_value).mean()
 
-            loss += 0.5 * critic_loss + actor_loss - 0.001 * new_dist_entropy
+            loss = actor_loss - 0.05 * new_dist_entropy
+            #if reward != 0:
+            loss += 0.25 * critic_loss
 
-        loss = loss / len(actions)
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
+            self.optimizer_policy.zero_grad()
+            loss.backward()
+            self.optimizer_policy.step()
+
 

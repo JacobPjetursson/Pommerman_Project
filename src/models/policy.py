@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from distributions import Categorical, DiagGaussian
 
-
 class Policy(nn.Module):
     def __init__(self, nn, action_space):
         super(Policy, self).__init__()

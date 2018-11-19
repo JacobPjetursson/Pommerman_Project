@@ -72,12 +72,9 @@ class PommNet(NNBase):
         self.obs_shape = obs_shape
         self.device = torch.device('cuda:0')
 
-        # FIXME hacky, recover input shape from flattened observation space
-        # assuming an 11x11 board and 3 non spatial features
-        bs = 11
-        self.other_shape = [3]
-        input_channels = (obs_shape[0] - self.other_shape[0]) // (bs*bs)
-        self.image_shape = [3, bs, bs]
+        self.number_of_channels = obs_shape[0]
+        bs = obs_shape[1]
+        self.image_shape = [self.number_of_channels, bs, bs]
         assert np.prod(obs_shape) >= np.prod(self.image_shape)
 
         self.common_conv = ConvNet4(
@@ -99,7 +96,7 @@ class PommNet(NNBase):
     def forward(self, inputs):
         inputs = inputs.cuda()
 
-        x_test = inputs.reshape((-1, 3, 11, 11))
+        x_test = inputs.reshape((-1, self.number_of_channels, 11, 11))
         # inputs_image = inputs[:, :-self.other_shape[0]].view([-1] + self.image_shape)
         #       print(inputs_image.size)
         # inputs_other = inputs[:, -self.other_shape[0]:]
