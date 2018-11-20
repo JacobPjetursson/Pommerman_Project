@@ -27,18 +27,24 @@ class PytorchAgent(BaseAgent):
         self.number_of_actions = 4
         self.zero = torch.zeros([1], dtype=torch.long)
         self.zero = self.zero.cuda()
-        self.ammo = 0
+        self.still = self.zero
+        self.up = self.zero + 1
+        self.down = self.zero + 2
+        self.left = self.zero + 3
+        self.right = self.zero + 4
+        self.bomb = self.zero + 5
 
-    def get_rewards(self, state, reward, l):
-        t_reward = reward
-        return [float(t_reward) * math.pow(0.95, i) for i in range(l)]
+    def get_rewards(self, state, persons, reward, l):
+        steps_left = (801 - state["step_count"]) / 8000
+        t_reward = reward * (steps_left * ((3 - persons.nonzero().size(0)) / 3))
+        return [float(t_reward) * math.pow(0.995, i) for i in range(l)]
 
     def model_step(self, state, reward):
-        features, _, _, _, _ = self.getFeatures(state)
+        features, me, _, blast_map, persons, _ = self.getFeatures(state)
         self.states.append(features)
 
         if reward != 0:  # len(self.actions) == self.number_of_actions or reward == -1:
-            self.rewards = self.get_rewards(state, reward, len(self.actions))
+            self.rewards = self.get_rewards(state, persons, reward, len(self.actions))
             self.ppo.update(self.states, self.critic_values, self.rewards, self.actions, self.action_log_probs)
             self.states = []
             self.critic_values = []
@@ -62,7 +68,8 @@ class PytorchAgent(BaseAgent):
         board = torch.cat(
             [obs_board_walls + obs_board_bombs + obs_persons + obs_board_flames, obs_board_me, obs_blast_map,
              obs_persons])
-        return board, me, obs_board_walls + obs_board_bombs + obs_persons + obs_board_flames, obs_blast_map, obs["ammo"]
+        return board, me, obs_board_walls + obs_board_bombs + obs_persons + obs_board_flames, obs_blast_map, obs_persons, \
+               obs["ammo"]
 
     def get_blast_map(self, blast_strength, blast_life):
         blast_map = torch.zeros(11, 11)
@@ -70,84 +77,44 @@ class PytorchAgent(BaseAgent):
             for x in range(11):
                 st = blast_strength[y, x]
                 st = int(st.cpu().numpy())
-                if st > 0 and blast_life[y, x] < 4:
-                    st = st - 1
+                if 0 < blast_life[y, x] < 3:
+                    st = st
                     y_start = max(y - st, 0)
                     y_end = min(y + st, 11)
                     x_start = max(x - st, 0)
                     x_end = min(x + st, 11)
-                    blast_map[y_start:y_end, x] = blast_life[y, x]
-                    blast_map[y, x_start:x_end] = blast_life[y, x]
+                    blast_map[y_start:y_end, x] = 1  # blast_life[y, x]
+                    blast_map[y, x_start:x_end] = 1  # blast_life[y, x]
         return blast_map
 
-    def can_go_further(self, obstacles, y, x):
-        val_list = []
-        if y > 0 and self.get_empty_pos(obstacles, y - 1, x):
-            val_list.append(self.zero + 1)
-        if y < 10 and self.get_empty_pos(obstacles, y + 1, x):
-            val_list.append(self.zero + 2)
-        if x > 0 and self.get_empty_pos(obstacles, y, x - 1):
-            val_list.append(self.zero + 3)
-        if x < 10 and self.get_empty_pos(obstacles, y, x + 1):
-            val_list.append(self.zero + 4)
-        return val_list
-
-    def get_empty_pos(self, obstacles, y, x):
-        tot = 0
-        if y > 0 and not obstacles[y - 1, x]:
-            tot += 1
-        if y < 10 and not obstacles[y + 1, x]:
-            tot += 1
-        if x > 0 and not obstacles[y, x - 1]:
-            tot += 1
-        if x < 10 and not obstacles[y, x + 1]:
-            tot += 1
-        return tot > 0
-
     def get_valid_actions(self, walls_and_bombs, blastmap, me, ammo):
-        valid_actions = []
-        if me[0] > 0 and walls_and_bombs[me[0] - 1, me[1]] == 0 and (
-                blastmap[me[0] - 1, me[1]] < 1 or blastmap[me[0] - 1, me[1]] > 2):
-            valid_actions.append(self.zero + 1)
-        if me[0] < 10 and walls_and_bombs[me[0] + 1, me[1]] == 0 and (
-                blastmap[me[0] + 1, me[1]] < 1 or blastmap[me[0] + 1, me[1]] > 2):
-            valid_actions.append(self.zero + 2)
-        if me[1] > 0 and walls_and_bombs[me[0], me[1] - 1] == 0 and (
-                blastmap[me[0], me[1] - 1] < 1 or blastmap[me[0], me[1] - 1] > 2):
-            valid_actions.append(self.zero + 3)
-        if me[1] < 10 and walls_and_bombs[me[0], me[1] + 1] == 0 and (
-                blastmap[me[0], me[1] + 1] < 1 or blastmap[me[0], me[1] + 1] > 2):
-            valid_actions.append(self.zero + 4)
+        possible_actions = []
+        if not walls_and_bombs[me[0], me[1]] and not blastmap[me[0], me[1]]:
+            # possible_actions.append(self.still)
+            if ammo > 0:
+                possible_actions.append(self.bomb)
+        if me[0] > 0 and not walls_and_bombs[me[0] - 1, me[1]] and not blastmap[me[0] - 1, me[1]]:
+            possible_actions.append(self.up)
+        if me[0] < 10 and not walls_and_bombs[me[0] + 1, me[1]] and not blastmap[me[0] + 1, me[1]]:
+            possible_actions.append(self.down)
+        if me[1] > 0 and not walls_and_bombs[me[0], me[1] - 1] and not blastmap[me[0], me[1] - 1]:
+            possible_actions.append(self.left)
+        if me[1] < 10 and not walls_and_bombs[me[0], me[1] + 1] and not blastmap[me[0], me[1] + 1]:
+            possible_actions.append(self.right)
 
-        if not valid_actions and 0 < blastmap[me[0], me[1]] < 3:
-            return [self.zero + 1, self.zero + 2, self.zero + 3, self.zero + 4]
-
-        if valid_actions and ammo == self.ammo:
-            valid_actions.append(self.zero + 5)
-        valid_actions.append(self.zero)
-
-        if len(self.actions) > 0 and self.actions[-1] == (self.zero + 5):
-            bm_1 = (blastmap == 1).type('torch.FloatTensor')
-            vas = self.can_go_further(walls_and_bombs + bm_1, me[0], me[1])
-            return vas
-
-        return valid_actions
+        return possible_actions
 
     def get_valid_action(self, walls_and_bombs, blastmap, me, ammo, action):
         valid_actions = self.get_valid_actions(walls_and_bombs, blastmap, me, ammo)
         if action in valid_actions:
             return action
-        elif not valid_actions or (self.zero in valid_actions and len(valid_actions) == 1):
-            return self.zero
+        elif not valid_actions:
+            return self.still
         else:
-            if self.zero in valid_actions:
-                valid_actions.remove(self.zero)
             return random.choice(valid_actions)
 
     def act(self, obs, action_space):
-        features, me, walls_and_bombs, blastmap, ammo = self.getFeatures(obs)
-        if ammo > self.ammo:
-            self.ammo = ammo
+        features, me, walls_and_bombs, blastmap, persons, ammo = self.getFeatures(obs)
         critic_value, action, action_log_probs = self.policy.act(inputs=features)
         self.critic_values.append(critic_value)
         self.action_log_probs.append(action_log_probs)
