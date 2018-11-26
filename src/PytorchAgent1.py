@@ -12,12 +12,13 @@ import random
 class PytorchAgent(BaseAgent):
     """The Random Agent that returns random actions given an action_space."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, ppo_in, *args, **kwargs):
         super(PytorchAgent, self).__init__(*args, **kwargs)
-        self.nn = PommNet(torch.Size([4, 11, 11]))
-        self.policy = Policy(self.nn, action_space=Discrete(6))
-        self.ppo = PPO(self.policy, 2.5e-3)
-        self.ppo.set_deterministic(False)
+        # self.nn = PommNet(torch.Size([4, 11, 11]))
+        # self.policy = Policy(self.nn, action_space=Discrete(6))
+        # self.ppo = PPO(self.policy, 2.5e-3)
+        # self.ppo.set_deterministic(False)
+        self.ppo = ppo_in
 
         self.rewards = []
         self.states = []
@@ -44,7 +45,7 @@ class PytorchAgent(BaseAgent):
         features, me, f, blast_map, persons, _ = self.getFeatures(state)
         self.states.append(features)
 
-        if reward != 0:  # len(self.actions) == self.number_of_actions or reward == -1:
+        if reward != 0 or state["step_count"] >= 800:  # len(self.actions) == self.number_of_actions or reward == -1:
             self.rewards = self.get_rewards(state, persons, reward, len(self.actions))
             self.ppo.update(self.states, self.critic_values, self.rewards, self.actions, self.action_log_probs)
             self.states = []
@@ -55,12 +56,16 @@ class PytorchAgent(BaseAgent):
 
     def getFeatures(self, obs):
         me = obs["position"]
-        obs_persons = torch.FloatTensor((obs["board"] == 10).astype(int)) + torch.FloatTensor(
+        obs_persons = torch.FloatTensor((obs["board"] == 10).astype(int) +
             (obs["board"] == 11).astype(int)) + torch.FloatTensor(
-            (obs["board"] == 12).astype(int))
+            (obs["board"] == 12).astype(int)) + torch.FloatTensor(
+            (obs["board"] == 13).astype(int))
+        obs_persons[me[0], me[1]] -= 1
+
         obs_board_walls = torch.FloatTensor((obs["board"] == 1).astype(int)) + torch.FloatTensor(
             (obs["board"] == 2).astype(int))
-        obs_board_me = torch.FloatTensor((obs["board"] == 13).astype(int))
+        obs_board_me = torch.zeros(11, 11)  # torch.FloatTensor((obs["board"] == -1).astype(int))
+        obs_board_me[me[0], me[1]] += 1
         obs_board_flames = torch.FloatTensor((obs["board"] == 4).astype(int))
         obs_board_bombs_life = torch.FloatTensor((obs["bomb_life"]).astype(int))
         obs_board_bombs = torch.FloatTensor((obs["bomb_life"] > 0).astype(int))
@@ -78,36 +83,32 @@ class PytorchAgent(BaseAgent):
             for x in range(11):
                 st = blast_strength[y, x]
                 st = int(st.cpu().numpy())
-                if 0 < blast_life[y, x] < 2:
-                    y_start = max(y - (st-1), 0)
-                    y_end = min(y + st, 11)
-                    x_start = max(x - (st - 1), 0)
-                    x_end = min(x + st, 11)
-                    blast_map[y_start:y_end, x] = 1  # blast_life[y, x]
-                    blast_map[y, x_start:x_end] = 1  # blast_life[y, x]
+                y_start = max(y - (st - 1), 0)
+                y_end = min(y + st, 11)
+                x_start = max(x - (st - 1), 0)
+                x_end = min(x + st, 11)
+                blast_map[y_start:y_end, x] = blast_life[y, x]
+                blast_map[y, x_start:x_end] = blast_life[y, x]
         return blast_map
 
     def get_valid_actions(self, walls_and_bombs, blastmap, me, ammo):
         possible_actions = []
-        if not walls_and_bombs[me[0], me[1]] and not blastmap[me[0], me[1]]:
+        if not walls_and_bombs[me[0], me[1]] and blastmap[me[0], me[1]] != 1:
             possible_actions.append(self.still)
             if ammo > 0:
                 possible_actions.append(self.bomb)
-        if me[0] > 0 and not walls_and_bombs[me[0] - 1, me[1]] and not blastmap[me[0] - 1, me[1]]:
+        if me[0] > 0 and not walls_and_bombs[me[0] - 1, me[1]] and blastmap[me[0] - 1, me[1]] != 1:
             possible_actions.append(self.up)
-        if me[0] < 10 and not walls_and_bombs[me[0] + 1, me[1]] and not blastmap[me[0] + 1, me[1]]:
+        if me[0] < 10 and not walls_and_bombs[me[0] + 1, me[1]] and blastmap[me[0] + 1, me[1]] != 1:
             possible_actions.append(self.down)
-        if me[1] > 0 and not walls_and_bombs[me[0], me[1] - 1] and not blastmap[me[0], me[1] - 1]:
+        if me[1] > 0 and not walls_and_bombs[me[0], me[1] - 1] and blastmap[me[0], me[1] - 1] != 1:
             possible_actions.append(self.left)
-        if me[1] < 10 and not walls_and_bombs[me[0], me[1] + 1] and not blastmap[me[0], me[1] + 1]:
+        if me[1] < 10 and not walls_and_bombs[me[0], me[1] + 1] and blastmap[me[0], me[1] + 1] != 1:
             possible_actions.append(self.right)
         return possible_actions
 
     def get_valid_action(self, walls_and_bombs, blastmap, me, ammo, action):
         valid_actions = self.get_valid_actions(walls_and_bombs, blastmap, me, ammo)
-        #if random.random() > 0.95:
-        #    return random.choice(self.pos_actions)
-
         if action in valid_actions:
             return action
         elif not valid_actions:
@@ -117,7 +118,7 @@ class PytorchAgent(BaseAgent):
 
     def act(self, obs, action_space):
         features, me, walls_and_bombs, blastmap, persons, ammo = self.getFeatures(obs)
-        critic_value, action, action_log_probs = self.policy.act(inputs=features)
+        critic_value, action, action_log_probs = self.ppo.policy.act(inputs=features)
         self.critic_values.append(critic_value)
         self.action_log_probs.append(action_log_probs)
         val_act = self.get_valid_action(walls_and_bombs, blastmap, me, ammo, action)
