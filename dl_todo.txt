@@ -1,0 +1,6 @@
+parallel træning
+teamwork (imitation learning?)
+tweak network
+optimere input (state)
+tjek ppo
+finpuds blastmap
