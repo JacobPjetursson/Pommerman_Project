@@ -8,9 +8,9 @@ import time
 
 def main():
     agent_list = [
-        agents.SimpleAgent(),
-        agents.SimpleAgent(),
-        agents.SimpleAgent(),
+        agents.RandomAgent(),
+        agents.RandomAgent(),
+        agents.RandomAgent(),
         PytorchAgent1.PytorchAgent() #BLACKMAN, TOP RIGTH CORNER
     ]
     # Make the "Free-For-All" environment using the agent list

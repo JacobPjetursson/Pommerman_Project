@@ -33,14 +33,15 @@ class PytorchAgent(BaseAgent):
         self.left = self.zero + 3
         self.right = self.zero + 4
         self.bomb = self.zero + 5
+        self.pos_actions = [self.still, self.up, self.down, self.left, self.right, self.bomb]
 
     def get_rewards(self, state, persons, reward, l):
         steps_left = (801 - state["step_count"]) / 8000
         t_reward = reward * (steps_left * ((3 - persons.nonzero().size(0)) / 3))
-        return [float(t_reward) * math.pow(0.995, i) for i in range(l)]
+        return [float(t_reward) * math.pow(0.99, i) for i in range(l)]
 
     def model_step(self, state, reward):
-        features, me, _, blast_map, persons, _ = self.getFeatures(state)
+        features, me, f, blast_map, persons, _ = self.getFeatures(state)
         self.states.append(features)
 
         if reward != 0:  # len(self.actions) == self.number_of_actions or reward == -1:
@@ -77,11 +78,10 @@ class PytorchAgent(BaseAgent):
             for x in range(11):
                 st = blast_strength[y, x]
                 st = int(st.cpu().numpy())
-                if 0 < blast_life[y, x] < 3:
-                    st = st
-                    y_start = max(y - st, 0)
+                if 0 < blast_life[y, x] < 2:
+                    y_start = max(y - (st-1), 0)
                     y_end = min(y + st, 11)
-                    x_start = max(x - st, 0)
+                    x_start = max(x - (st - 1), 0)
                     x_end = min(x + st, 11)
                     blast_map[y_start:y_end, x] = 1  # blast_life[y, x]
                     blast_map[y, x_start:x_end] = 1  # blast_life[y, x]
@@ -90,7 +90,7 @@ class PytorchAgent(BaseAgent):
     def get_valid_actions(self, walls_and_bombs, blastmap, me, ammo):
         possible_actions = []
         if not walls_and_bombs[me[0], me[1]] and not blastmap[me[0], me[1]]:
-            # possible_actions.append(self.still)
+            possible_actions.append(self.still)
             if ammo > 0:
                 possible_actions.append(self.bomb)
         if me[0] > 0 and not walls_and_bombs[me[0] - 1, me[1]] and not blastmap[me[0] - 1, me[1]]:
@@ -101,11 +101,13 @@ class PytorchAgent(BaseAgent):
             possible_actions.append(self.left)
         if me[1] < 10 and not walls_and_bombs[me[0], me[1] + 1] and not blastmap[me[0], me[1] + 1]:
             possible_actions.append(self.right)
-
         return possible_actions
 
     def get_valid_action(self, walls_and_bombs, blastmap, me, ammo, action):
         valid_actions = self.get_valid_actions(walls_and_bombs, blastmap, me, ammo)
+        #if random.random() > 0.95:
+        #    return random.choice(self.pos_actions)
+
         if action in valid_actions:
             return action
         elif not valid_actions:
