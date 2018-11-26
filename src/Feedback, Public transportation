@@ -1,0 +1,15 @@
+Feedback, Public transportation 
+
+General:
+	Introduce notation and special knowledge before you use it. It can be though as a reader to understand what you mean when you have not introduce the teams before using them. 
+
+Readthrough:
+This paper propose a very vague descriptin of a system to secure "rejsekort". The assumptions are not explicitly stated and the meny spelling mistakes and non-specificity makes is hard to derive the real assumptions. 
+The authors do not introduce terms before they use them, making it difficult to read and understand in a fast read-through. 
+It is not clearly stated what the security goals of the proposal is, making it very difficult to evaluate if the goals are met, and if the proposal is deemed secure. 
+The scheme proposed to not specify any algorithms that is going to be used, or what type of hardware it will be using (Different cards are introduced, but none is explecitly chosen). The proposal is therefore not easily applied to the real world. 
+The boolean-scheme proposed makes it possible to travel freely if the user do not "check-out".
+
+Overall, the paper needs specificity and clearness in order to be more easily understood. Another structure should be used, making sure that the terms are properly introduced before usage.
+
+
