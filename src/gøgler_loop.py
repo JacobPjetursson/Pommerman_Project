@@ -14,7 +14,7 @@ import copy
 
 
 def main():
-    load_bool = True
+    load_bool = False
 
     nn = PommNet(torch.Size([5, 11, 11]))
     if load_bool:
@@ -23,6 +23,8 @@ def main():
     policy = Policy(nn, action_space=Discrete(6))
     ppo = PPO(policy, 2.5e-3)
     ppo.set_deterministic(False)
+
+    show_every = 250
 
     agent_list = [
         PytorchAgent1.PytorchAgent(ppo),  # BLACKMAN, TOP RIGTH CORNER
@@ -47,8 +49,8 @@ def main():
         old_reward = None
         while not done and run_bool:
             run_bool = False
-            if i_episode % 5 == 0 and i_episode > 0:
-                ppo.set_deterministic(True)
+            if i_episode % show_every == 0 and i_episode > 0:
+                #ppo.set_deterministic(True)
                 env.render()
             actions = env.act(state)
             state, reward, done, info = env.step(actions)
@@ -63,14 +65,13 @@ def main():
                         run_bool = True
             old_reward = reward
 
-        if i_episode % 5 == 0 and i_episode > 0:
-            ppo.set_deterministic(True)
+        if i_episode % show_every == 0 and i_episode > 0:
             env.render()
 
         for index in range(4):
             lost[index] += reward[index]
 
-        print('Episode {} finished, {}'.format(i_episode + 1, lost))
+        print('Episode {} finished in {}, {}'.format(i_episode + 1, state[0]["step_count"], lost))
 
         if i_episode % 10 == 0 and i_episode > 0:
             save_model = copy.deepcopy(nn).cpu().state_dict()
