@@ -1,6 +1,5 @@
 parallel træning
 teamwork (imitation learning?)
 tweak network
-optimere input (state)
-tjek ppo
+forsøg at træn længere periode
 finpuds blastmap
