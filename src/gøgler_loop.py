@@ -16,21 +16,21 @@ import copy
 def main():
     load_bool = True
 
-    nn = PommNet(torch.Size([4, 11, 11]))
+    nn = PommNet(torch.Size([5, 11, 11]))
     if load_bool:
         model_dict = torch.load("trained_models/ppo_net.pt")
         nn.load_state_dict(model_dict)
     policy = Policy(nn, action_space=Discrete(6))
-    ppo = PPO(policy, 2.5e-4)
+    ppo = PPO(policy, 2.5e-3)
     ppo.set_deterministic(False)
 
     agent_list = [
-        #PytorchAgent1.PytorchAgent(ppo),  # BLACKMAN, TOP RIGTH CORNER
-        #PytorchAgent1.PytorchAgent(ppo),  # BLACKMAN, TOP RIGTH CORNER
-        #PytorchAgent1.PytorchAgent(ppo),  # BLACKMAN, TOP RIGTH CORNER
-        agents.SimpleAgent(),  # PytorchAgent(ppo),
-        agents.SimpleAgent(),  # PytorchAgent(ppo),
-        agents.SimpleAgent(),  # PytorchAgent(ppo),
+        PytorchAgent1.PytorchAgent(ppo),  # BLACKMAN, TOP RIGTH CORNER
+        PytorchAgent1.PytorchAgent(ppo),  # BLACKMAN, TOP RIGTH CORNER
+        PytorchAgent1.PytorchAgent(ppo),  # BLACKMAN, TOP RIGTH CORNER
+        #agents.SimpleAgent(),  # PytorchAgent(ppo),
+        #agents.SimpleAgent(),  # PytorchAgent(ppo),
+        #agents.SimpleAgent(),  # PytorchAgent(ppo),
         PytorchAgent1.PytorchAgent(ppo)  # BLACKMAN, TOP RIGTH CORNER
     ]
     # Make the "Free-For-All" environment using the agent list
