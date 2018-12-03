@@ -81,7 +81,7 @@ class PommNet(NNBase):
             input_shape=self.image_shape,
             output_size=hidden_size,
             batch_norm=batch_norm)
-        self.common_conv.cuda()
+        #self.common_conv.cuda()
         self.common_conv = self.common_conv.cuda()
 
         self.actor = nn.Linear(hidden_size, hidden_size)
