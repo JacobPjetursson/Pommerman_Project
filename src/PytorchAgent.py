@@ -24,8 +24,7 @@ class PytorchAgent(BaseAgent):
         self.critic_values = []
         self.actions = []
         self.action_log_probs = []
-        self.zero = torch.zeros([1], dtype=torch.long)
-        self.zero = self.zero.cuda()
+        self.zero = torch.zeros([1], dtype=torch.long).cuda()
         self.still = self.zero
         self.up = self.zero + 1
         self.down = self.zero + 2
@@ -35,12 +34,12 @@ class PytorchAgent(BaseAgent):
         self.pos_actions = [self.still, self.up, self.down, self.left, self.right, self.bomb]
         self.train_step_number = 50
 
-    def get_rewards(self, state, persons, reward, l):
+    def get_rewards(self, state, persons, reward, action_length):
         t_reward = reward 
         if reward < 0:
             still_count = 1 + self.actions.count(self.still) / self.train_step_number
             t_reward = reward * still_count * (1 + persons.nonzero().size(0) / 3)
-        return [float(t_reward) * math.pow(0.975, i) for i in range(l)]
+        return [float(t_reward) * math.pow(0.975, i) for i in range(action_length)]
 
     def model_step(self, state, reward):
         features, _, persons, _, _ = self.getFeatures(state)
@@ -63,7 +62,7 @@ class PytorchAgent(BaseAgent):
 
     def getFeatures(self, obs):
         me = obs["position"]
-        obs_persons = torch.FloatTensor((obs["board"] == 10).astype(int)) + torch.FloatTensor((obs["board"] == 11).astype(int)) + torch.FloatTensor((obs["board"] == 12).astype(int)) + torch.FloatTensor((obs["board"] == 13).astype(int))
+        obs_persons = torch.FloatTensor((obs["board"] > 10).astype(int))
         obs_persons[me[0], me[1]] -= 1
 
         # Board with me
@@ -110,8 +109,7 @@ class PytorchAgent(BaseAgent):
                             blast_map[y,i] = blast_life[y, x] / default_value
         return blast_map
 
-    def get_valid_actions(self, walls_and_bombs, blastmap, me, ammo):  
-        default_value = pommerman.constants.DEFAULT_BOMB_LIFE
+    def get_valid_actions(self, walls_and_bombs, me, ammo):
         possible_actions = []   
         if not walls_and_bombs[me[0], me[1]]:   
             possible_actions.append(self.still) 
@@ -148,7 +146,7 @@ class PytorchAgent(BaseAgent):
         if self.train:
             valid_actions = self.get_valid_actions_train(walls_and_bombs, blastmap, me, ammo)
         else:
-            valid_actions = self.get_valid_actions(walls_and_bombs, blastmap, me, ammo) 
+            valid_actions = self.get_valid_actions(walls_and_bombs, me, ammo)
         if action in valid_actions: 
             return action   
         elif not valid_actions: 
