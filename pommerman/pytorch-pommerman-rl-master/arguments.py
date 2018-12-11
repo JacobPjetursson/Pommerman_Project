@@ -57,8 +57,6 @@ def get_args():
                         help='save interval, one save per n updates (default: 100)')
     parser.add_argument('--eval-interval', type=int, default=1000,
                         help='eval interval, one eval per n updates (default: None)')
-    parser.add_argument('--vis-interval', type=int, default=100,
-                        help='vis interval, one log per n updates (default: 100)')
     parser.add_argument('--num-frames', type=int, default=5e7,
                         help='number of frames to train (default: 5e7)')
     parser.add_argument('--env-name', default='PongNoFrameskip-v4',
@@ -73,15 +71,12 @@ def get_args():
                         help='add timestep to observations')
     parser.add_argument('--recurrent-policy', action='store_true', default=False,
                         help='use a recurrent policy')
-    parser.add_argument('--no-vis', action='store_true', default=False,
-                        help='disables visdom visualization')
-    parser.add_argument('--port', type=int, default=8097,
-                        help='port to run the server on (default: 8097)')
     parser.add_argument('--no-norm', action='store_true', default=False,
                         help='disables normalization')
+    parser.add_argument('--load-path', default='',
+                        help='path to checkpoint file')
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
-    args.vis = not args.no_vis
 
     return args

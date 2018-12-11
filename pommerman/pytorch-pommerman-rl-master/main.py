@@ -13,9 +13,9 @@ from envs import make_vec_envs
 from models import create_policy
 from rollout_storage import RolloutStorage
 from replay_storage import ReplayStorage
-from visualize import visdom_plot
 
 args = get_args()
+load = True
 
 assert args.algo in ['a2c', 'a2c-sil', 'ppo', 'ppo-sil', 'acktr']
 if args.recurrent_policy:
@@ -35,26 +35,27 @@ try:
     os.makedirs(args.log_dir)
 except OSError:
     files = glob.glob(os.path.join(args.log_dir, '*.monitor.csv'))
-    for f in files:
-        os.remove(f)
+    try:
+        for f in files:
+            os.remove(f)
+    except:
+        pass
 
 eval_log_dir = args.log_dir + "_eval"
 try:
     os.makedirs(eval_log_dir)
 except OSError:
     files = glob.glob(os.path.join(eval_log_dir, '*.monitor.csv'))
-    for f in files:
-        os.remove(f)
+    try:
+        for f in files:
+            os.remove(f)
+    except:
+        pass
 
 
 def main():
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if args.cuda else "cpu")
-
-    if args.vis:
-        from visdom import Visdom
-        viz = Visdom(port=args.port)
-        win = None
 
     train_envs = make_vec_envs(
         args.env_name, args.seed, args.num_processes, args.gamma, args.no_norm, args.num_stack,
@@ -82,7 +83,14 @@ def main():
             'hidden_size': 512,
         },
         train=True)
-
+    if args.load_path or load:
+        print("Loading in previous model")
+        try:
+            state_dict, ob_rms = torch.load(args.load_path)
+            actor_critic.load_state_dict(state_dict)
+        except:
+            print("Wrong path!")
+            exit(1)
     actor_critic.to(device)
 
     if args.algo.startswith('a2c'):
@@ -235,14 +243,6 @@ def main():
 
             print(" Evaluation using {} episodes: mean reward {:.5f}\n".
                 format(len(eval_episode_rewards), np.mean(eval_episode_rewards)))
-
-        if args.vis and j % args.vis_interval == 0:
-            try:
-                # Sometimes monitor doesn't properly flush the outputs
-                win = visdom_plot(viz, win, args.log_dir, args.env_name,
-                                  args.algo, args.num_frames)
-            except IOError:
-                pass
 
 
 if __name__ == "__main__":
