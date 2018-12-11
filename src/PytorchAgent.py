@@ -32,14 +32,17 @@ class PytorchAgent(BaseAgent):
         self.right = self.zero + 4
         self.bomb = self.zero + 5
         self.pos_actions = [self.still, self.up, self.down, self.left, self.right, self.bomb]
-        self.train_step_number = 50
+        self.train_step_number = 32
+
+    def set_train(self, boo):
+        self.train = boo
 
     def get_rewards(self, state, persons, reward, action_length):
         t_reward = reward 
         if reward < 0:
             still_count = 1 + self.actions.count(self.still) / self.train_step_number
             t_reward = reward * still_count * (1 + persons.nonzero().size(0) / 3)
-        return [float(t_reward) * math.pow(0.975, i) for i in range(action_length)]
+        return [float(t_reward) * math.pow(0.95, i) for i in range(action_length)]
 
     def model_step(self, state, reward):
         features, _, persons, _, _ = self.getFeatures(state)
