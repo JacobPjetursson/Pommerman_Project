@@ -49,32 +49,13 @@ def get_unflat_obs_space(channels=15, board_size=11, rescale=True):
         gym.spaces.Box(min_other_obs, max_other_obs)])
 
 
-def get_blast_map(blast_strength, blast_life):
-        default_value = pommerman.constants.DEFAULT_BOMB_LIFE
-        blast_map = np.zeros((11,11)) #flames / default_value
-        for y in range(11):
-            for x in range(11):
-                st = int(blast_strength[y, x])
-                if st > 0:
-                    y_start = max(y - (st - 1), 0)
-                    y_end = min(y + st, 11)
-                    x_start = max(x - (st - 1), 0)
-                    x_end = min(x + st, 11)
-                    for i in range(y_start, y_end):
-                        if blast_map[i,x] == 0 or blast_map[i, x] > blast_life[y, x] / default_value:                            
-                            blast_map[i,x] = blast_life[y, x] / default_value
-                    for i in range(x_start, x_end):
-                        if blast_map[y,i] == 0 or blast_map[y, i] > blast_life[y, x] / default_value:                            
-                            blast_map[y,i] = blast_life[y, x] / default_value
-        return blast_map
-
 def featurize(obs, agent_id, config):
     max_item = pommerman.constants.Item.Agent3.value
 
     ob = obs["board"]
     ob_bomb_blast_strength = obs["bomb_blast_strength"].astype(np.float32) / pommerman.constants.AGENT_VIEW_SIZE
     ob_bomb_life = obs["bomb_life"].astype(np.float32) / pommerman.constants.DEFAULT_BOMB_LIFE
-    obs_blast_map = get_blast_map(ob_bomb_blast_strength, ob_bomb_life)
+
     # one hot encode the board items
     ob_values = max_item + 1
     ob_hot = np.eye(ob_values)[ob]
@@ -97,7 +78,7 @@ def featurize(obs, agent_id, config):
         ob_hot = np.delete(ob_hot, [7, 8], axis=2)
 
     # replace bomb item channel with bomb life
-    ob_hot[:, :, 3] = obs_blast_map #ob_bomb_life
+    ob_hot[:, :, 3] = ob_bomb_life
 
     if config['compact_structure']:
         ob_hot[:, :, 0] = 0.5 * ob_hot[:, :, 0] + ob_hot[:, :, 5]  # passage + fog
