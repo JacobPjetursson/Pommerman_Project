@@ -18,7 +18,7 @@ parser.add_argument('--log-interval', type=int, default=10,
                     help='log interval, one log per n updates (default: 10)')
 parser.add_argument('--env-name', default='PongNoFrameskip-v4',
                     help='environment to train on (default: PongNoFrameskip-v4)')
-parser.add_argument('--load-path', default='',
+parser.add_argument('--load-path', default='trained_models/a2c/PommeFFACompetitionFast-v0.pt',
                     help='path to checkpoint file')
 parser.add_argument('--recurrent-policy', action='store_true', default=False,
                     help='use a recurrent policy')
