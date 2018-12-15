@@ -9,7 +9,7 @@ def get_args():
                         help='algorithm to use: a2c | ppo | acktr')
     parser.add_argument('--lr', type=float, default=2.5e-4,
                         help='learning rate (default: 2.5e-4)')
-    parser.add_argument('--lr-schedule', type=float, default=None,
+    parser.add_argument('--lr-schedule', type=float, default=500000,
                         help='learning rate step schedule (default: None)')
     parser.add_argument('--eps', type=float, default=1e-5,
                         help='RMSprop optimizer epsilon (default: 1e-5)')
@@ -59,8 +59,8 @@ def get_args():
                         help='eval interval, one eval per n updates (default: None)')
     parser.add_argument('--num-frames', type=int, default=5e7,
                         help='number of frames to train (default: 5e7)')
-    parser.add_argument('--env-name', default='PongNoFrameskip-v4',
-                        help='environment to train on (default: PongNoFrameskip-v4)')
+    parser.add_argument('--env-name', default='PommeFFACompetitionFast-v0',
+                        help='environment to train on (default: PommeFFACompetitionFast-v0)')
     parser.add_argument('--log-dir', default='/tmp/gym/',
                         help='directory to save agent logs (default: /tmp/gym)')
     parser.add_argument('--save-dir', default='./trained_models/',
@@ -73,7 +73,7 @@ def get_args():
                         help='use a recurrent policy')
     parser.add_argument('--no-norm', action='store_true', default=False,
                         help='disables normalization')
-    parser.add_argument('--load-path', default='',
+    parser.add_argument('--load-path', default='./trained_models/a2c/PommeFFACompetitionFast-v0.pt',
                         help='path to checkpoint file')
     args = parser.parse_args()
 

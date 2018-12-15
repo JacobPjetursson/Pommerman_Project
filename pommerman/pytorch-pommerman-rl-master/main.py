@@ -83,7 +83,7 @@ def main():
             'hidden_size': 512,
         },
         train=True)
-    if args.load_path or load:
+    if args.load_path and load:
         print("Loading in previous model")
         try:
             state_dict, ob_rms = torch.load(args.load_path)
@@ -160,7 +160,11 @@ def main():
 
             for info in infos:
                 if 'episode' in info.keys():
-                    episode_rewards.append(info['episode']['r'])
+                    rew = info['episode']['r']
+                    #length = info['episode']['l']
+                    #if rew < 0:
+                    #    rew = rew * (1 + (length / 800))
+                    episode_rewards.append(rew)
 
             # If done then clean the history of observations.
             masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done], device=device)
