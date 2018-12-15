@@ -82,28 +82,28 @@ def get_blast_map(blast_strength, blast_life, wall_map, wood_wall_map):
                     x_end = min(x + st, 11)
                     for i in range(y, y_start, -1):
                         if (blast_map[i, x] == 0 or blast_map[i, x] < (default_value - blast_life[y, x] + 1)):
-                            if wall_map[i, x] == 0:
+                            if wall_map[i, x] == 1:
                                 break
                             blast_map[i, x] = (default_value - blast_life[y, x] + 1)
                             if wood_wall_map[i, x] == 1:
                                 break;
                     for i in range(y, y_end):
                         if (blast_map[i, x] == 0 or blast_map[i, x] < (default_value - blast_life[y, x] + 1)):  
-                            if wall_map[i, x] == 0:
+                            if wall_map[i, x] == 1:
                                 break
                             blast_map[i, x] = (default_value - blast_life[y, x] + 1)
                             if wood_wall_map[i, x] == 1:
                                 break;
                     for i in range(x, x_start, -1):  
                         if (blast_map[y, i] == 0 or blast_map[y, i] < (default_value - blast_life[y, x] + 1)):
-                            if wall_map[i, x] == 0:
+                            if wall_map[i, x] == 1:
                                 break
                             blast_map[y, i] = (default_value - blast_life[y, x] + 1) 
                             if wood_wall_map[y, i] == 1:
                                 break;
                     for i in range(x, x_end):  
                         if (blast_map[y, i] == 0 or blast_map[y, i] < (default_value - blast_life[y, x] + 1)):
-                            if wall_map[i, x] == 0:
+                            if wall_map[i, x] == 1:
                                 break
                             blast_map[y, i] = (default_value - blast_life[y, x] + 1) 
                             if wood_wall_map[y, i] == 1:
