@@ -80,13 +80,31 @@ def get_blast_map(blast_strength, blast_life, wall_map, wood_wall_map):
                     y_end = min(y + st, 11)
                     x_start = max(x - (st - 1), 0)
                     x_end = min(x + st, 11)
-                    for i in range(y_start, y_end):
-                        if (blast_map[i, x] == 0 or blast_map[i, x] < (default_value - blast_life[y, x] + 1)) and wall_map[i, x] == 0:                            
+                    for i in range(y, y_start, -1):
+                        if (blast_map[i, x] == 0 or blast_map[i, x] < (default_value - blast_life[y, x] + 1)):
+                            if wall_map[i, x] == 0:
+                                break
                             blast_map[i, x] = (default_value - blast_life[y, x] + 1)
                             if wood_wall_map[i, x] == 1:
                                 break;
-                    for i in range(x_start, x_end):  
-                        if (blast_map[y, i] == 0 or blast_map[y, i] < (default_value - blast_life[y, x] + 1)) and wall_map[i, x] == 0:
+                    for i in range(y, y_end):
+                        if (blast_map[i, x] == 0 or blast_map[i, x] < (default_value - blast_life[y, x] + 1)):  
+                            if wall_map[i, x] == 0:
+                                break
+                            blast_map[i, x] = (default_value - blast_life[y, x] + 1)
+                            if wood_wall_map[i, x] == 1:
+                                break;
+                    for i in range(x, x_start, -1):  
+                        if (blast_map[y, i] == 0 or blast_map[y, i] < (default_value - blast_life[y, x] + 1)):
+                            if wall_map[i, x] == 0:
+                                break
+                            blast_map[y, i] = (default_value - blast_life[y, x] + 1) 
+                            if wood_wall_map[y, i] == 1:
+                                break;
+                    for i in range(x, x_end):  
+                        if (blast_map[y, i] == 0 or blast_map[y, i] < (default_value - blast_life[y, x] + 1)):
+                            if wall_map[i, x] == 0:
+                                break
                             blast_map[y, i] = (default_value - blast_life[y, x] + 1) 
                             if wood_wall_map[y, i] == 1:
                                 break;
