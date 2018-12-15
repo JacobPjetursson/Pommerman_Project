@@ -71,43 +71,48 @@ def get_blast_map(blast_strength, blast_life, wall_map, wood_wall_map):
         default_value = pommerman.constants.DEFAULT_BOMB_LIFE
         # Større score = Større farer
         blast_map = np.zeros((11, 11))   #flames * default_value
-        for y in range(11):
-            for x in range(11):
-                st = blast_strength[y, x]
-                st = int(st)
-                if st > 0:
-                    y_start = max(y - (st - 1), 0)
-                    y_end = min(y + st, 11)
-                    x_start = max(x - (st - 1), 0)
-                    x_end = min(x + st, 11)
-                    for i in range(y, y_start, -1):
-                        if (blast_map[i, x] == 0 or blast_map[i, x] < (default_value - blast_life[y, x] + 1)):
-                            if wall_map[i, x] == 1:
-                                break
-                            blast_map[i, x] = (default_value - blast_life[y, x] + 1)
-                            if wood_wall_map[i, x] == 1:
-                                break;
-                    for i in range(y, y_end):
-                        if (blast_map[i, x] == 0 or blast_map[i, x] < (default_value - blast_life[y, x] + 1)):  
-                            if wall_map[i, x] == 1:
-                                break
-                            blast_map[i, x] = (default_value - blast_life[y, x] + 1)
-                            if wood_wall_map[i, x] == 1:
-                                break;
-                    for i in range(x, x_start, -1):  
-                        if (blast_map[y, i] == 0 or blast_map[y, i] < (default_value - blast_life[y, x] + 1)):
-                            if wall_map[i, x] == 1:
-                                break
-                            blast_map[y, i] = (default_value - blast_life[y, x] + 1) 
-                            if wood_wall_map[y, i] == 1:
-                                break;
-                    for i in range(x, x_end):  
-                        if (blast_map[y, i] == 0 or blast_map[y, i] < (default_value - blast_life[y, x] + 1)):
-                            if wall_map[i, x] == 1:
-                                break
-                            blast_map[y, i] = (default_value - blast_life[y, x] + 1) 
-                            if wood_wall_map[y, i] == 1:
-                                break;
+        ys, xs = blast_strength.nonzero()
+
+        for i in range(len(ys)):
+            y = ys[i]
+            x = xs[i]
+            st = blast_strength[y, x]
+            st = int(st)
+            if st > 0:
+                y_start = max(y - (st - 1), 0)
+                y_end = min(y + st, 11)
+                x_start = max(x - (st - 1), 0)
+                x_end = min(x + st, 11)
+                value = (default_value - blast_life[y, x] + 1)
+
+                for i in reversed(range(y_start, y)):
+                    if (blast_map[i, x] < value):
+                        if wall_map[i, x]:
+                            break
+                        blast_map[i, x] = value
+                        if wood_wall_map[i, x]:
+                            break;
+                for i in range(y, y_end):
+                    if (blast_map[i, x] < value):  
+                        if wall_map[i, x]:
+                            break
+                        blast_map[i, x] = value
+                        if wood_wall_map[i, x]:
+                            break;
+                for i in reversed(range(x_start, x)):  
+                    if (blast_map[y, i] < value):
+                        if wall_map[y, i]:
+                            break
+                        blast_map[y, i] = value
+                        if wood_wall_map[y, i]:
+                            break;
+                for i in range(x, x_end):  
+                    if (blast_map[y, i] < value):
+                        if wall_map[y, i]:
+                            break
+                        blast_map[y, i] = value 
+                        if wood_wall_map[y, i]:
+                            break;
         return blast_map / (default_value + 1)
 
 
