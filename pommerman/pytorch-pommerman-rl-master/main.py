@@ -247,6 +247,9 @@ def main():
 
             print(" Evaluation using {} episodes: mean reward {:.5f}\n".
                 format(len(eval_episode_rewards), np.mean(eval_episode_rewards)))
+            saveStr = "%s: %s\n" % (total_num_steps, np.mean(eval_episode_rewards))
+            with open("eval_rewards.txt", "a+") as f:
+                f.write(saveStr)
 
 
 if __name__ == "__main__":
