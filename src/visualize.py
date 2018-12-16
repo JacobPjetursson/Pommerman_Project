@@ -90,6 +90,8 @@ if args.env_name.find('Bullet') > -1:
         if p.getBodyInfo(i)[0].decode() == "torso":
             torsoId = i
 
+rewards = []
+wins = 0
 while True:
     with torch.no_grad():
         value, action, _, recurrent_hidden_states = actor_critic.act(
@@ -108,7 +110,12 @@ while True:
 
     for i, d in enumerate(done):
         if d:
-            print(reward[i].item())
+            rewards.append(reward[i].item())
+            if reward[i].item() > 0:
+                wins = wins + 1
+            print(len(rewards),np.mean(rewards), float(wins) / len(rewards))
+            #print(reward[i].item())
 
     if render_func is not None:
         render_func('human')
+
