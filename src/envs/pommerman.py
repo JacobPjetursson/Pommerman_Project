@@ -277,10 +277,8 @@ def _ffa_partial_fast_env():
     return locals()
 
 
-def make_env(config, use_search=False):
-    training_agent = SearchAgent.SearchAgent()
-    if not use_search:
-        training_agent = TrainingAgent()
+def make_env(config):
+    training_agent = TrainingAgent()
     agent_list = [
         training_agent,
         pommerman.agents.SimpleAgent(),
