@@ -9,11 +9,11 @@ import numpy as np
 from collections import deque
 
 
-class SearchAgent(BaseAgent):
+class SearchAgent(pommerman.agents.BaseAgent):
     """The Random Agent that returns random actions given an action_space."""
 
-    def __init__(self, *args, **kwargs):
-        super(SearchAgent, self).__init__(*args, **kwargs)
+    def __init__(self, character=pommerman.characters.Bomber):
+        super(SearchAgent, self).__init__(character)
 
         self.zero = np.zeros(1)
         self.still = self.zero

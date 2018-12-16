@@ -5,6 +5,9 @@ import numpy as np
 import gym
 import random
 
+import SearchAgent_2 as SearchAgent
+
+
 DEFAULT_FEATURE_CONFIG = {
     'recode_agents': True,
     'compact_powerups': True,
@@ -194,11 +197,11 @@ class PommermanEnvWrapper(gym.Wrapper):
 
     def step(self, actions):
         obs = self.env.get_observations()
-        all_actions = [actions]
-        all_actions += self.env.act(obs)
+        all_actions = self.env.act(obs)
+        all_actions.insert(self.env.training_agent, actions)
+
         state, reward, done, _ = self.env.step(all_actions)
         if not self.feature_config:
-            print("VI ER HER!")
             agent_state = self.env.featurize(state[self.env.training_agent])
         else:
             agent_state = featurize(
@@ -274,14 +277,17 @@ def _ffa_partial_fast_env():
     return locals()
 
 
-def make_env(config):
-    training_agent = TrainingAgent()
+def make_env(config, use_search=False):
+    training_agent = SearchAgent.SearchAgent()
+    if not use_search:
+        training_agent = TrainingAgent()
     agent_list = [
         training_agent,
         pommerman.agents.SimpleAgent(),
         pommerman.agents.SimpleAgent(),
         pommerman.agents.SimpleAgent(),
     ]
+
     if config == "PommeFFAPartialFast-v0":
         env_spec = _ffa_partial_fast_env()
         env = pommerman.envs.v0.Pomme(**env_spec['env_kwargs'])
@@ -294,6 +300,9 @@ def make_env(config):
         #env.set_render_mode(render_mode)
     else:
         env = pommerman.make(config, agent_list)
+
     env.set_training_agent(training_agent.agent_id)
     env.set_init_game_state(None)
+
+
     return PommermanEnvWrapper(env)

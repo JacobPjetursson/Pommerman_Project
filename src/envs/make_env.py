@@ -34,10 +34,10 @@ except ImportError:
     pass
 
 
-def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_resets=False):
+def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_resets=False, use_search=False):
     def _thunk():
         if env_id.startswith("Pomme"):
-            env = envs.pommerman.make_env(env_id)
+            env = envs.pommerman.make_env(env_id, use_search)
         elif env_id.startswith("dm"):
             _, domain, task = env_id.split('.')
             env = dm_control2gym.make(domain_name=domain, task_name=task)
@@ -72,9 +72,9 @@ def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_r
 
 
 def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
-                  log_dir=None, add_timestep=False, device='cpu', allow_early_resets=False, eval=False):
+                  log_dir=None, add_timestep=False, device='cpu', allow_early_resets=False, eval=False, use_search=False):
 
-    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets)
+    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets, use_search=use_search)
                 for i in range(num_processes)]
 
     if len(envs) > 1:
