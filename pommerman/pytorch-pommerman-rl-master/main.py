@@ -15,7 +15,7 @@ from rollout_storage import RolloutStorage
 from replay_storage import ReplayStorage
 
 args = get_args()
-load = True
+load = False
 
 assert args.algo in ['a2c', 'a2c-sil', 'ppo', 'ppo-sil', 'acktr']
 if args.recurrent_policy:

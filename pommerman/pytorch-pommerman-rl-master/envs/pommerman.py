@@ -147,14 +147,14 @@ def featurize(obs, agent_id, config):
         ob_hot = np.delete(ob_hot, [7, 8], axis=2)
 
     # replace bomb item channel with bomb life
-    ob_hot[:, :, 3] = obs_blast_map #ob_bomb_life
+    #ob_hot[:, :, 3] = obs_blast_map #ob_bomb_life
 
     if config['compact_structure']:
         ob_hot[:, :, 0] = 0.5 * ob_hot[:, :, 0] + ob_hot[:, :, 5]  # passage + fog
         ob_hot[:, :, 1] = 0.5 * ob_hot[:, :, 2] + ob_hot[:, :, 1]  # rigid + wood walls
         ob_hot = np.delete(ob_hot, [2], axis=2)
-        # replace former fog channel with bomb blast strength, remember that this was changed because of delete
-        ob_hot[:, :, 4] = ob_bomb_blast_strength
+        # replace former fog channel with blast_map, remember that this was changed because of delete
+        ob_hot[:, :, 4] = obs_blast_map
     else:
         # insert bomb blast strength next to bomb life
         ob_hot = np.insert(ob_hot, 4, ob_bomb_blast_strength, axis=2)

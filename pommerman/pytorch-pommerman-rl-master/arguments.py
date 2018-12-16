@@ -9,7 +9,7 @@ def get_args():
                         help='algorithm to use: a2c | ppo | acktr')
     parser.add_argument('--lr', type=float, default=2.5e-4,
                         help='learning rate (default: 2.5e-4)')
-    parser.add_argument('--lr-schedule', type=float, default=500000,
+    parser.add_argument('--lr-schedule', type=float, default=None,
                         help='learning rate step schedule (default: None)')
     parser.add_argument('--eps', type=float, default=1e-5,
                         help='RMSprop optimizer epsilon (default: 1e-5)')
