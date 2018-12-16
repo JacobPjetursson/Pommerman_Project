@@ -1,132 +1,253 @@
-import PytorchAgent
-import pommerman
-from pommerman import agents
-
-from models.model_pomm import PommNet
-from models.policy import Policy
-from gym.spaces import Discrete
-from our_ppo import PPO
-import torch
 import copy
-import threading
-import random
+import glob
+import os
+import time
+from collections import deque
 
+import numpy as np
+import torch
 
-def train(nn, number, save_bool=False):
-	print("Starting thread " + str(number))
-	policy = Policy(nn, action_space=Discrete(6))
-	policy = policy.cuda()
-	ppo = PPO(policy, 2.5e-4)
-	ppo.set_deterministic(False)
+import algo
+from arguments import get_args
+from envs import make_vec_envs
+from models import create_policy
+from rollout_storage import RolloutStorage
+from replay_storage import ReplayStorage
 
-	agent_list = [
-		agents.SimpleAgent(),  # PytorchAgent(ppo),
-		agents.SimpleAgent(),
-		agents.SimpleAgent()  # PytorchAgent(ppo),
-		#PytorchAgent.PytorchAgent(ppo)  # BLACKMAN, TOP RIGTH CORNER
-	]
-	agent_list.insert(random.randint(0,3),PytorchAgent.PytorchAgent(ppo))
+args = get_args()
+load = True
 
-	env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
+assert args.algo in ['a2c', 'a2c-sil', 'ppo', 'ppo-sil', 'acktr']
+if args.recurrent_policy:
+    assert args.algo in ['a2c', 'ppo'], \
+        'Recurrent policy is not implemented for ACKTR or SIL'
 
-	print("Working " + str(number))
-	for i_episode in range(100):
-		state = env.reset()
-		done = False
-		ppo.set_deterministic(False)
+update_factor = args.num_steps * args.num_processes
+num_updates = int(args.num_frames) // update_factor
+lr_update_schedule = None if args.lr_schedule is None else args.lr_schedule // update_factor
 
-		run_bool = True
-		old_reward = [0, 0, 0, 0]
-		while not done and run_bool:
-			run_bool = False
-			actions = env.act(state)
-			state, reward, done, info = env.step(actions)
+torch.manual_seed(args.seed)
+if args.cuda:
+    torch.cuda.manual_seed(args.seed)
+np.random.seed(args.seed)
 
-			# Train the agent
-			for agent_index in range(4):
-				agent = agent_list[agent_index]
-				if isinstance(agent, PytorchAgent.PytorchAgent):
-					if old_reward[agent_index] == 0:
-						agent.model_step(state[agent_index], reward[agent_index])
-						run_bool = True
-			old_reward = reward
+try:
+    os.makedirs(args.log_dir)
+except OSError:
+    files = glob.glob(os.path.join(args.log_dir, '*.monitor.csv'))
+    try:
+        for f in files:
+            os.remove(f)
+    except:
+        pass
 
-	env.close()
-	if save_bool:
-		save_model = copy.deepcopy(nn).cpu().state_dict()
-		torch.save(save_model, "trained_models/ppo_net.pt")
+eval_log_dir = args.log_dir + "_eval"
+try:
+    os.makedirs(eval_log_dir)
+except OSError:
+    files = glob.glob(os.path.join(eval_log_dir, '*.monitor.csv'))
+    try:
+        for f in files:
+            os.remove(f)
+    except:
+        pass
 
-def showcase(ppo):
-	agent_list = [
-		#PytorchAgent1.PytorchAgent(ppo),  # BLACKMAN, TOP RIGTH CORNER
-		#PytorchAgent1.PytorchAgent(ppo),  # BLACKMAN, TOP RIGTH CORNER
-		agents.SimpleAgent(),
-		agents.SimpleAgent(),
-		#PytorchAgent.PytorchAgent(ppo),  # BLACKMAN, TOP RIGTH CORNER
-		agents.SimpleAgent(),  # PytorchAgent(ppo),
-		#agents.SimpleAgent(),
-		PytorchAgent.PytorchAgent(ppo)  # BLACKMAN, TOP RIGTH CORNER
-	]
-	#agent_list[3].set_train(False)
-
-	env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
-
-	lost = [0, 0, 0, 0]
-	for i_episode in range(10):
-		state = env.reset()
-		done = False
-
-		run_bool = True
-		old_reward = [0, 0, 0, 0]
-		while not done and run_bool:
-			run_bool = False
-			env.render()
-			actions = env.act(state)
-			state, reward, done, info = env.step(actions)
-
-			# Train the agent
-			for agent_index in range(4):
-				agent = agent_list[agent_index]
-				if isinstance(agent, PytorchAgent.PytorchAgent):
-					if old_reward[agent_index] == 0:
-						agent.model_step(state[agent_index], reward[agent_index])
-						run_bool = True
-			old_reward = reward
-		env.render()
-
-		for index in range(4):
-			lost[index] += reward[index]
-
-		print('Episode {} finished in {}, {}'.format(i_episode + 1, state[0]["step_count"], lost))
-
-	env.close()
 
 def main():
+    torch.set_num_threads(1)
+    device = torch.device("cuda:0" if args.cuda else "cpu")
 
-	train = False
+    train_envs = make_vec_envs(
+        args.env_name, args.seed, args.num_processes, args.gamma, args.no_norm, args.num_stack,
+        args.log_dir, args.add_timestep, device, allow_early_resets=False)
 
-	load_bool = True
-	save_bool = False
-	number_of_threads = 8
-	torch.set_num_threads(number_of_threads)
+    if args.eval_interval:
+        eval_envs = make_vec_envs(
+            args.env_name, args.seed + args.num_processes, args.num_processes, args.gamma,
+            args.no_norm, args.num_stack, eval_log_dir, args.add_timestep, device,
+            allow_early_resets=True, eval=True)
 
-	nn = PommNet(torch.Size([5, 11, 11]))
-	if load_bool:
-		model_dict = torch.load("trained_models/ppo_net.pt")
-		nn.load_state_dict(model_dict)
-	
-	nn = nn.cuda()
+        if eval_envs.venv.__class__.__name__ == "VecNormalize":
+            eval_envs.venv.ob_rms = train_envs.venv.ob_rms
+    else:
+        eval_envs = None
 
-	if train:
-		for i in range(number_of_threads):
-			threading.Thread(target=train, args=(nn, i, save_bool)).start()
-	else:
-		policy = Policy(nn, action_space=Discrete(6))
-		policy = policy.cuda()
-		ppo = PPO(policy, 2.5e-4)
-		ppo.set_deterministic(True)
-		showcase(ppo)
+    # FIXME this is very specific to Pommerman env right now
+    actor_critic = create_policy(
+        train_envs.observation_space,
+        train_envs.action_space,
+        name='pomm',
+        nn_kwargs={
+            'batch_norm': False if args.algo == 'acktr' else True,
+            'recurrent': args.recurrent_policy,
+            'hidden_size': 512,
+        },
+        train=True)
+    if args.load_path and load:
+        print("Loading in previous model")
+        try:
+            state_dict, ob_rms = torch.load(args.load_path)
+            actor_critic.load_state_dict(state_dict)
+        except:
+            print("Wrong path!")
+            exit(1)
+    actor_critic.to(device)
+
+    if args.algo.startswith('a2c'):
+        agent = algo.A2C_ACKTR(
+            actor_critic, args.value_loss_coef,
+            args.entropy_coef,
+            lr=args.lr, lr_schedule=lr_update_schedule,
+            eps=args.eps, alpha=args.alpha,
+            max_grad_norm=args.max_grad_norm)
+    elif args.algo.startswith('ppo'):
+        agent = algo.PPO(
+            actor_critic, args.clip_param, args.ppo_epoch, args.num_mini_batch,
+            args.value_loss_coef, args.entropy_coef,
+            lr=args.lr, lr_schedule=lr_update_schedule,
+            eps=args.eps,
+            max_grad_norm=args.max_grad_norm)
+    elif args.algo == 'acktr':
+        agent = algo.A2C_ACKTR(
+            actor_critic, args.value_loss_coef,
+            args.entropy_coef,
+            acktr=True)
+
+    if args.algo.endswith('sil'):
+        agent = algo.SIL(
+            agent,
+            update_ratio=args.sil_update_ratio,
+            epochs=args.sil_epochs,
+            batch_size=args.sil_batch_size,
+            value_loss_coef=args.sil_value_loss_coef or args.value_loss_coef,
+            entropy_coef=args.sil_entropy_coef or args.entropy_coef)
+        replay = ReplayStorage(
+            5e5,
+            args.num_processes,
+            args.gamma,
+            0.1,
+            train_envs.observation_space.shape,
+            train_envs.action_space,
+            actor_critic.recurrent_hidden_state_size,
+            device=device)
+    else:
+        replay = None
+
+    rollouts = RolloutStorage(
+        args.num_steps, args.num_processes,
+        train_envs.observation_space.shape,
+        train_envs.action_space,
+        actor_critic.recurrent_hidden_state_size)
+
+    obs = train_envs.reset()
+    rollouts.obs[0].copy_(obs)
+    rollouts.to(device)
+
+    episode_rewards = deque(maxlen=10)
+    
+    start = time.time()
+    for j in range(num_updates):
+        for step in range(args.num_steps):
+            # Sample actions
+            with torch.no_grad():
+                value, action, action_log_prob, recurrent_hidden_states = actor_critic.act(
+                        rollouts.obs[step],
+                        rollouts.recurrent_hidden_states[step],
+                        rollouts.masks[step])
+
+            # Obser reward and next obs
+            obs, reward, done, infos = train_envs.step(action)
+
+            for info in infos:
+                if 'episode' in info.keys():
+                    rew = info['episode']['r']
+                    #length = info['episode']['l']
+                    #if rew < 0:
+                    #    rew = rew * (1 + (length / 800))
+                    episode_rewards.append(rew)
+
+            # If done then clean the history of observations.
+            masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done], device=device)
+            rollouts.insert(obs, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
+            if replay is not None:
+                replay.insert(
+                    rollouts.obs[step],
+                    rollouts.recurrent_hidden_states[step],
+                    action,
+                    reward,
+                    done)
+
+        with torch.no_grad():
+            next_value = actor_critic.get_value(rollouts.obs[-1],
+                                                rollouts.recurrent_hidden_states[-1],
+                                                rollouts.masks[-1]).detach()
+
+        rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
+
+        value_loss, action_loss, dist_entropy, other_metrics = agent.update(rollouts, j, replay)
+
+        rollouts.after_update()
+
+        if j % args.save_interval == 0 and args.save_dir != "":
+            save_path = os.path.join(args.save_dir, args.algo)
+            try:
+                os.makedirs(save_path)
+            except OSError:
+                pass
+
+            # A really ugly way to save a model to CPU
+            save_model = actor_critic
+            if args.cuda:
+                save_model = copy.deepcopy(actor_critic).cpu()
+
+            save_model = [save_model.state_dict(),
+                            hasattr(train_envs.venv, 'ob_rms') and train_envs.venv.ob_rms or None]
+
+            torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
+
+        total_num_steps = (j + 1) * update_factor
+
+        if j % args.log_interval == 0 and len(episode_rewards) > 1:
+            end = time.time()
+            print("Updates {}, num timesteps {}, FPS {}, last {} mean/median reward {:.1f}/{:.1f}, "
+                  "min / max reward {:.1f}/{:.1f}, value/action loss {:.5f}/{:.5f}".
+                format(j, total_num_steps,
+                       int(total_num_steps / (end - start)),
+                       len(episode_rewards),
+                       np.mean(episode_rewards),
+                       np.median(episode_rewards),
+                       np.min(episode_rewards),
+                       np.max(episode_rewards), dist_entropy,
+                       value_loss, action_loss), end=', ' if other_metrics else '\n')
+            if 'sil_value_loss' in other_metrics:
+                print("SIL value/action loss {:.1f}/{:.1f}.".format(
+                    other_metrics['sil_value_loss'],
+                    other_metrics['sil_action_loss']
+                ))
+
+        if args.eval_interval and len(episode_rewards) > 1 and j > 0 and j % args.eval_interval == 0:
+            eval_episode_rewards = []
+
+            obs = eval_envs.reset()
+            eval_recurrent_hidden_states = torch.zeros(args.num_processes,
+                            actor_critic.recurrent_hidden_state_size, device=device)
+            eval_masks = torch.zeros(args.num_processes, 1, device=device)
+
+            while len(eval_episode_rewards) < 50:
+                with torch.no_grad():
+                    _, action, _, eval_recurrent_hidden_states = actor_critic.act(
+                        obs, eval_recurrent_hidden_states, eval_masks, deterministic=True)
+
+                # Obser reward and next obs
+                obs, reward, done, infos = eval_envs.step(action)
+                eval_masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done], device=device)
+                for info in infos:
+                    if 'episode' in info.keys():
+                        eval_episode_rewards.append(info['episode']['r'])
+
+            print(" Evaluation using {} episodes: mean reward {:.5f}\n".
+                format(len(eval_episode_rewards), np.mean(eval_episode_rewards)))
 
 
-if __name__ == '__main__':
-	main()
+if __name__ == "__main__":
+    main()
