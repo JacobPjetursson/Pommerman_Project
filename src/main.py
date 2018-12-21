@@ -15,7 +15,7 @@ from rollout_storage import RolloutStorage
 from replay_storage import ReplayStorage
 
 args = get_args()
-load = True
+load = False
 
 assert args.algo in ['a2c', 'a2c-sil', 'ppo', 'ppo-sil', 'acktr']
 if args.recurrent_policy:
@@ -73,6 +73,8 @@ def main():
         eval_envs = None
 
     # FIXME this is very specific to Pommerman env right now
+    # Husk at vi har et lidt andet space, gider ikke rode rundt i det for at se hvor man skal hen
+
     actor_critic = create_policy(
         train_envs.observation_space,
         train_envs.action_space,
@@ -244,7 +246,6 @@ def main():
                 for info in infos:
                     if 'episode' in info.keys():
                         eval_episode_rewards.append(info['episode']['r'])
-
             print(" Evaluation using {} episodes: mean reward {:.5f}\n".
                 format(len(eval_episode_rewards), np.mean(eval_episode_rewards)))
 

@@ -38,7 +38,7 @@ class Categorical(nn.Module):
               nn.init.orthogonal_,
               lambda x: nn.init.constant_(x, 0),
               gain=0.01)
-
+        
         self.linear = init_(nn.Linear(num_inputs, num_outputs))
 
     def forward(self, x):

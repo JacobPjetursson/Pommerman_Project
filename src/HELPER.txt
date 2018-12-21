@@ -2,9 +2,9 @@ python main.py --use-gae --env-name PommeFFACompetitionFast-v0 --no-norm --seed 
 
 python main.py --use-gae --env-name PommeFFACompetitionFast-v0 --no-norm --seed 42 --algo a2c --lr-schedule 25000000
 
-
-
-python main.py --use-gae --no-norm --seed 42 --algo ppo
-
-
 python main.py --use-gae --seed 42 --algo ppo
+
+
+python main.py --use-gae --seed 42 --algo a2c
+
+python main.py

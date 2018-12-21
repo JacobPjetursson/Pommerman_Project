@@ -51,123 +51,98 @@ def get_unflat_obs_space(channels=15, board_size=11, rescale=True):
         gym.spaces.Box(min_board_obs, max_board_obs),
         gym.spaces.Box(min_other_obs, max_other_obs)])
 
-def get_blast_map_old(blast_strength, blast_life):
-        default_value = pommerman.constants.DEFAULT_BOMB_LIFE
-        blast_map = np.zeros((11,11)) #flames / default_value
-        for y in range(11):
-            for x in range(11):
-                st = int(blast_strength[y, x])
-                if st > 0:
-                    y_start = max(y - (st - 1), 0)
-                    y_end = min(y + st, 11)
-                    x_start = max(x - (st - 1), 0)
-                    x_end = min(x + st, 11)
-                    for i in range(y_start, y_end):
-                        if blast_map[i,x] == 0 or blast_map[i, x] > blast_life[y, x] / default_value:                            
-                            blast_map[i,x] = blast_life[y, x] / default_value
-                    for i in range(x_start, x_end):
-                        if blast_map[y,i] == 0 or blast_map[y, i] > blast_life[y, x] / default_value:                            
-                            blast_map[y,i] = blast_life[y, x] / default_value
-        return blast_map
-
-def get_blast_map(blast_strength, blast_life, wall_map, wood_wall_map):
+def get_blast_map(blast_strength, blast_life, wall_map, wood_wall_map, flames_map):
         default_value = pommerman.constants.DEFAULT_BOMB_LIFE
         # Større score = Større farer
-        blast_map = np.zeros((11, 11))   #flames * default_value
-        for y in range(11):
-            for x in range(11):
-                st = blast_strength[y, x]
-                st = int(st)
-                if st > 0:
-                    y_start = max(y - (st - 1), 0)
-                    y_end = min(y + st, 11)
-                    x_start = max(x - (st - 1), 0)
-                    x_end = min(x + st, 11)
-                    for i in range(y, y_start, -1):
-                        if (blast_map[i, x] == 0 or blast_map[i, x] < (default_value - blast_life[y, x] + 1)):
-                            if wall_map[i, x] == 0:
-                                break
-                            blast_map[i, x] = (default_value - blast_life[y, x] + 1)
-                            if wood_wall_map[i, x] == 1:
-                                break;
-                    for i in range(y, y_end):
-                        if (blast_map[i, x] == 0 or blast_map[i, x] < (default_value - blast_life[y, x] + 1)):  
-                            if wall_map[i, x] == 0:
-                                break
-                            blast_map[i, x] = (default_value - blast_life[y, x] + 1)
-                            if wood_wall_map[i, x] == 1:
-                                break;
-                    for i in range(x, x_start, -1):  
-                        if (blast_map[y, i] == 0 or blast_map[y, i] < (default_value - blast_life[y, x] + 1)):
-                            if wall_map[i, x] == 0:
-                                break
-                            blast_map[y, i] = (default_value - blast_life[y, x] + 1) 
-                            if wood_wall_map[y, i] == 1:
-                                break;
-                    for i in range(x, x_end):  
-                        if (blast_map[y, i] == 0 or blast_map[y, i] < (default_value - blast_life[y, x] + 1)):
-                            if wall_map[i, x] == 0:
-                                break
-                            blast_map[y, i] = (default_value - blast_life[y, x] + 1) 
-                            if wood_wall_map[y, i] == 1:
-                                break;
+        blast_map = flames_map.copy() * (default_value + 1) #np.zeros((11, 11))   #flames * default_value
+
+        ys, xs = blast_strength.nonzero()
+
+        for i in range(len(ys)):
+            y = ys[i]
+            x = xs[i]
+            st = blast_strength[y, x]
+            st = int(st)
+            if st > 0:
+                y_start = max(y - (st - 1), 0)
+                y_end = min(y + st, 11)
+                x_start = max(x - (st - 1), 0)
+                x_end = min(x + st, 11)
+                value = (default_value - blast_life[y, x] + 1)
+
+                for i in reversed(range(y_start, y)):
+                    if (blast_map[i, x] < value):
+                        if wall_map[i, x]:
+                            break
+                        blast_map[i, x] = value
+                        if wood_wall_map[i, x]:
+                            break;
+                for i in range(y, y_end):
+                    if (blast_map[i, x] < value):  
+                        if wall_map[i, x]:
+                            break
+                        blast_map[i, x] = value
+                        if wood_wall_map[i, x]:
+                            break;
+                for i in reversed(range(x_start, x)):  
+                    if (blast_map[y, i] < value):
+                        if wall_map[y, i]:
+                            break
+                        blast_map[y, i] = value
+                        if wood_wall_map[y, i]:
+                            break;
+                for i in range(x, x_end):  
+                    if (blast_map[y, i] < value):
+                        if wall_map[y, i]:
+                            break
+                        blast_map[y, i] = value 
+                        if wood_wall_map[y, i]:
+                            break;
+
         return blast_map / (default_value + 1)
 
 
 def featurize(obs, agent_id, config):
-    max_item = pommerman.constants.Item.Agent3.value
-
     ob = obs["board"]
+
+    # REMEMBER! Our version has no fog, we give him the entire screen!
+
+    ob_values = 14
+    ob_hot = np.eye(ob_values)[ob]
 
     ob_bomb_blast_strength = obs["bomb_blast_strength"].astype(np.float32) / pommerman.constants.AGENT_VIEW_SIZE
     ob_bomb_life = obs["bomb_life"].astype(np.float32) / pommerman.constants.DEFAULT_BOMB_LIFE
-    # one hot encode the board items
-    ob_values = max_item + 1
-    ob_hot = np.eye(ob_values)[ob]
+    obs_blast_map = get_blast_map(ob_bomb_blast_strength, ob_bomb_life, ob_hot[:, :, 1], ob_hot[:, :, 2], ob_hot[:, :, 4])
 
-    obs_blast_map = get_blast_map(ob_bomb_blast_strength, ob_bomb_life, ob_hot[:,:, 1], ob_hot[:,:, 2])
+    self_value = pommerman.constants.Item.Agent0.value + agent_id
 
-    # replace agent item channels with friend, enemy, self channels
-    if config['recode_agents']:
-        self_value = pommerman.constants.Item.Agent0.value + agent_id
-        enemies = np.logical_and(ob >= pommerman.constants.Item.Agent0.value, ob != self_value)
-        self = (ob == self_value)
-        friends = (ob == pommerman.constants.Item.AgentDummy.value)
-        ob_hot[:, :, 9] = friends.astype(np.float32)
-        ob_hot[:, :, 10] = self.astype(np.float32)
-        ob_hot[:, :, 11] = enemies.astype(np.float32)
-        ob_hot = np.delete(ob_hot, np.s_[12::], axis=2)
-
-    if config['compact_powerups']:
-        # replace powerups with single channel
-        powerup = ob_hot[:, :, 6] * 0.5 + ob_hot[:, :, 7] * 0.66667 + ob_hot[:, :, 8]
-        ob_hot[:, :, 6] = powerup
-        ob_hot = np.delete(ob_hot, [7, 8], axis=2)
-
-    # replace bomb item channel with bomb life
-    ob_hot[:, :, 3] = obs_blast_map #ob_bomb_life
-
-    if config['compact_structure']:
-        ob_hot[:, :, 0] = 0.5 * ob_hot[:, :, 0] + ob_hot[:, :, 5]  # passage + fog
-        ob_hot[:, :, 1] = 0.5 * ob_hot[:, :, 2] + ob_hot[:, :, 1]  # rigid + wood walls
-        ob_hot = np.delete(ob_hot, [2], axis=2)
-        # replace former fog channel with bomb blast strength
-        ob_hot[:, :, 5] = ob_bomb_blast_strength
-    else:
-        # insert bomb blast strength next to bomb life
-        ob_hot = np.insert(ob_hot, 4, ob_bomb_blast_strength, axis=2)
+    enemies = np.logical_and(ob >= pommerman.constants.Item.Agent0.value, ob != self_value)
+    self = (ob == self_value)
+    friends = (ob == pommerman.constants.Item.AgentDummy.value)    
 
     self_ammo = make_np_float([obs["ammo"]])
     self_blast_strength = make_np_float([obs["blast_strength"]])
     self_can_kick = make_np_float([obs["can_kick"]])
 
+    powerups = ob_hot[:, :, 6] * 0.5 + ob_hot[:, :, 7] * 0.66667 + ob_hot[:, :, 8]
+
+    #ob_hot[:, :, 0] = ob_hot[:, :, 0] # We don't have fog 
+    #ob_hot[:, :, 1] = ob_hot[:, :, 1] 
+    #ob_hot[:, :, 2] * 0.5
+    ob_hot[:, :, 3] = ob_hot[:, :, 3] * self_can_kick
+    ob_hot[:, :, 4] = obs_blast_map
+    ob_hot[:, :, 5] = powerups
+    ob_hot[:, :, 6] = self.astype(np.float32)
+    ob_hot[:, :, 7] = friends.astype(np.float32)
+    ob_hot[:, :, 8] = enemies.astype(np.float32)
+    ob_hot = np.delete(ob_hot, np.s_[9::], axis=2)
+
     ob_hot = ob_hot.transpose((2, 0, 1))  # PyTorch tensor layout compat
 
-    if config['rescale']:
-        ob_hot = _rescale(ob_hot)
-        self_ammo = _rescale(self_ammo / 10)
-        self_blast_strength = _rescale(self_blast_strength / pommerman.constants.AGENT_VIEW_SIZE)
-        self_can_kick = _rescale(self_can_kick)
+    #ob_hot = _rescale(ob_hot)
+    #self_ammo = _rescale(self_ammo / 10)
+    #self_blast_strength = _rescale(self_blast_strength / pommerman.constants.AGENT_VIEW_SIZE)
+    #self_can_kick = _rescale(self_can_kick)
 
     return np.concatenate([np.reshape(ob_hot, -1), self_ammo, self_blast_strength, self_can_kick])
 
@@ -278,13 +253,15 @@ def _ffa_partial_fast_env():
 
 
 def make_env(config):
+    rand_int = random.randint(0, 3)
+    print("Create env, he start at: ", rand_int)
     training_agent = TrainingAgent()
     agent_list = [
-        training_agent,
         pommerman.agents.SimpleAgent(),
         pommerman.agents.SimpleAgent(),
         pommerman.agents.SimpleAgent(),
     ]
+    agent_list.insert(rand_int, training_agent)
 
     if config == "PommeFFAPartialFast-v0":
         env_spec = _ffa_partial_fast_env()

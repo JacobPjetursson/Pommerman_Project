@@ -10,6 +10,9 @@ class Policy(nn.Module):
         assert isinstance(nn, torch.nn.Module)
         self.nn = nn
 
+        self.zero = torch.zeros(1,1)
+        self.zero = self.zero.cuda()
+
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
             self.dist = Categorical(self.nn.output_size, num_outputs)
@@ -33,12 +36,20 @@ class Policy(nn.Module):
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
         value, actor_features, rnn_hxs = self.nn(inputs, rnn_hxs, masks)
+        #dist = torch.distributions.Categorical(probs=actor_features)
+
         dist = self.dist(actor_features)
 
         if deterministic:
             action = dist.mode()
+            #print("We are in here")
+            #_, arg_max = actor_features.max(-1)
+            #action = self.zero + int(arg_max[0])
+            #print(action)
         else:
             action = dist.sample()
+            #action = self.zero + int(action[0])
+            #print(action)
 
         action_log_probs = dist.log_probs(action)
         _ = dist.entropy().mean()
@@ -51,6 +62,7 @@ class Policy(nn.Module):
 
     def evaluate_actions(self, inputs, rnn_hxs, masks, action):
         value, actor_features, rnn_hxs = self.nn(inputs, rnn_hxs, masks)
+        #dist = torch.distributions.Categorical(probs=actor_features)
         dist = self.dist(actor_features)
 
         action_log_probs = dist.log_probs(action)

@@ -25,12 +25,20 @@ class Policy(nn.Module):
 
     def act(self, inputs):
         critic_value, actor_value = self.net(inputs)
+
+        m = torch.distributions.Categorical(actor_value)
+
+        print("Actor_value: ", actor_value)
+
         dist = self.dist(actor_value)
+        print("Dist: ", dist)
 
         if self.deterministic:
-            action = dist.mode()
+            #action = dist.mode()
+            action = m.mode()
         else:
             action = dist.sample()
+            action = m.sample()
         #print(dist.probs)
         action_log_probs = dist.log_probs(action)
         _ = dist.entropy().mean()

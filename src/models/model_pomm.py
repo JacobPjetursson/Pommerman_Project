@@ -7,7 +7,7 @@ import numpy as np
 
 class ConvNet3(nn.Module):
     def __init__(
-            self, input_shape, num_channels=64, output_size=512,
+            self, input_shape, num_channels=64, output_size=6, #512
             batch_norm=True, activation_fn=F.relu, dilation=True):
         super(ConvNet3, self).__init__()
 
@@ -125,6 +125,7 @@ class PommNet(NNBase):
         # FIXME hacky, recover input shape from flattened observation space
         # assuming an 11x11 board and 3 non spatial features
         bs = 11
+
         self.other_shape = [3]
         input_channels = (obs_shape[0] - self.other_shape[0]) // (bs*bs)
         self.image_shape = [input_channels, bs, bs]
@@ -149,7 +150,10 @@ class PommNet(NNBase):
             nn.ReLU()
         )
 
-        self.actor = nn.Linear(hidden_size + hidden_size//4, hidden_size)
+        #self.actor = nn.Linear(hidden_size + hidden_size//4, hidden_size)
+        self.actor = nn.Sequential(
+            nn.Linear(hidden_size + hidden_size // 4, hidden_size) #, nn.Softmax(dim=1)
+        )
 
         self.critic = nn.Sequential(
             nn.Linear(hidden_size + hidden_size//4, 1),
