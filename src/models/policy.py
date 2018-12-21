@@ -1,71 +1,54 @@
 import torch
 import torch.nn as nn
-from distributions import Categorical, DiagGaussian
 
 
 class Policy(nn.Module):
-    def __init__(self, nn, action_space):
+    def __init__(self, net, action_space):
         super(Policy, self).__init__()
+        assert isinstance(net, torch.nn.Module)
+        self.net = net
 
-        assert isinstance(nn, torch.nn.Module)
-        self.nn = nn
-
-        self.zero = torch.zeros(1,1)
-        self.zero = self.zero.cuda()
-
-        if action_space.__class__.__name__ == "Discrete":
-            num_outputs = action_space.n
-            self.dist = Categorical(self.nn.output_size, num_outputs)
-        elif action_space.__class__.__name__ == "Box":
-            num_outputs = action_space.shape[0]
-            self.dist = DiagGaussian(self.nn.output_size, num_outputs)
-        else:
-            raise NotImplementedError
 
     @property
     def is_recurrent(self):
-        return self.nn.is_recurrent
+        return self.net.is_recurrent
 
     @property
     def recurrent_hidden_state_size(self):
         """Size of rnn_hx."""
-        return self.nn.recurrent_hidden_state_size
+        return self.net.recurrent_hidden_state_size
 
     def forward(self, inputs, rnn_hxs, masks):
         raise NotImplementedError
 
     def act(self, inputs, rnn_hxs, masks, deterministic=False):
-        value, actor_features, rnn_hxs = self.nn(inputs, rnn_hxs, masks)
-        #dist = torch.distributions.Categorical(probs=actor_features)
-
-        dist = self.dist(actor_features)
+        value, actor_features, rnn_hxs = self.net(inputs, rnn_hxs, masks)
+        dist = torch.distributions.Categorical(probs=actor_features)
 
         if deterministic:
-            action = dist.mode()
-            #print("We are in here")
-            #_, arg_max = actor_features.max(-1)
-            #action = self.zero + int(arg_max[0])
-            #print(action)
+            action = dist.probs.argmax(dim=1, keepdim=True) # mode
         else:
-            action = dist.sample()
-            #action = self.zero + int(action[0])
-            #print(action)
+            action = dist.sample().unsqueeze(-1)
 
-        action_log_probs = dist.log_probs(action)
+        action_log_probs = dist.log_prob(action.squeeze(-1)).unsqueeze(-1)
+
         _ = dist.entropy().mean()
 
         return value, action, action_log_probs, rnn_hxs
 
     def get_value(self, inputs, rnn_hxs, masks):
-        value, _, _ = self.nn(inputs, rnn_hxs, masks)
+        value, _, _ = self.net(inputs, rnn_hxs, masks)
         return value
 
     def evaluate_actions(self, inputs, rnn_hxs, masks, action):
-        value, actor_features, rnn_hxs = self.nn(inputs, rnn_hxs, masks)
-        #dist = torch.distributions.Categorical(probs=actor_features)
-        dist = self.dist(actor_features)
+        print("eval actions")
+        value, actor_features, rnn_hxs = self.net(inputs, rnn_hxs, masks)
+        dist = torch.distributions.Categorical(probs=actor_features)
 
-        action_log_probs = dist.log_probs(action)
+        action_log_probs = dist.log_prob(action.squeeze(-1)).unsqueeze(-1)
         dist_entropy = dist.entropy().mean()
 
         return value, action_log_probs, dist_entropy, rnn_hxs
+
+
+

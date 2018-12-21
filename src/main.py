@@ -12,15 +12,11 @@ from arguments import get_args
 from envs import make_vec_envs
 from models import create_policy
 from rollout_storage import RolloutStorage
-from replay_storage import ReplayStorage
 
 args = get_args()
 load = False
 
-assert args.algo in ['a2c', 'a2c-sil', 'ppo', 'ppo-sil', 'acktr']
-if args.recurrent_policy:
-    assert args.algo in ['a2c', 'ppo'], \
-        'Recurrent policy is not implemented for ACKTR or SIL'
+assert args.algo in ['a2c', 'ppo']
 
 update_factor = args.num_steps * args.num_processes
 num_updates = int(args.num_frames) // update_factor
@@ -80,8 +76,8 @@ def main():
         train_envs.action_space,
         name='pomm',
         nn_kwargs={
-            'batch_norm': False if args.algo == 'acktr' else True,
-            'recurrent': args.recurrent_policy,
+            'batch_norm': True,
+            'recurrent': False,
             'hidden_size': 512,
         },
         train=True)
@@ -115,26 +111,6 @@ def main():
             args.entropy_coef,
             acktr=True)
 
-    if args.algo.endswith('sil'):
-        agent = algo.SIL(
-            agent,
-            update_ratio=args.sil_update_ratio,
-            epochs=args.sil_epochs,
-            batch_size=args.sil_batch_size,
-            value_loss_coef=args.sil_value_loss_coef or args.value_loss_coef,
-            entropy_coef=args.sil_entropy_coef or args.entropy_coef)
-        replay = ReplayStorage(
-            5e5,
-            args.num_processes,
-            args.gamma,
-            0.1,
-            train_envs.observation_space.shape,
-            train_envs.action_space,
-            actor_critic.recurrent_hidden_state_size,
-            device=device)
-    else:
-        replay = None
-
     rollouts = RolloutStorage(
         args.num_steps, args.num_processes,
         train_envs.observation_space.shape,
@@ -163,21 +139,11 @@ def main():
             for info in infos:
                 if 'episode' in info.keys():
                     rew = info['episode']['r']
-                    #length = info['episode']['l']
-                    #if rew < 0:
-                    #    rew = rew * (1 + (length / 800))
                     episode_rewards.append(rew)
 
             # If done then clean the history of observations.
             masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done], device=device)
             rollouts.insert(obs, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
-            if replay is not None:
-                replay.insert(
-                    rollouts.obs[step],
-                    rollouts.recurrent_hidden_states[step],
-                    action,
-                    reward,
-                    done)
 
         with torch.no_grad():
             next_value = actor_critic.get_value(rollouts.obs[-1],
@@ -186,7 +152,7 @@ def main():
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
-        value_loss, action_loss, dist_entropy, other_metrics = agent.update(rollouts, j, replay)
+        value_loss, action_loss, dist_entropy, other_metrics = agent.update(rollouts, j)
 
         rollouts.after_update()
 
@@ -197,7 +163,7 @@ def main():
             except OSError:
                 pass
 
-            # A really ugly way to save a model to CPU
+            # Save model
             save_model = actor_critic
             if args.cuda:
                 save_model = copy.deepcopy(actor_critic).cpu()
@@ -221,11 +187,6 @@ def main():
                        np.min(episode_rewards),
                        np.max(episode_rewards), dist_entropy,
                        value_loss, action_loss), end=', ' if other_metrics else '\n')
-            if 'sil_value_loss' in other_metrics:
-                print("SIL value/action loss {:.1f}/{:.1f}.".format(
-                    other_metrics['sil_value_loss'],
-                    other_metrics['sil_action_loss']
-                ))
 
         if args.eval_interval and len(episode_rewards) > 1 and j > 0 and j % args.eval_interval == 0:
             eval_episode_rewards = []

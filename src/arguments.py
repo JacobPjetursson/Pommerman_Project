@@ -6,7 +6,7 @@ import torch
 def get_args():
     parser = argparse.ArgumentParser(description='RL')
     parser.add_argument('--algo', default='a2c',
-                        help='algorithm to use: a2c | ppo | acktr')
+                        help='algorithm to use: a2c | ppo')
     parser.add_argument('--lr', type=float, default=2.5e-4,
                         help='learning rate (default: 2.5e-4)')
     parser.add_argument('--lr-schedule', type=float, default=500000,
@@ -39,23 +39,13 @@ def get_args():
                         help='number of batches for ppo (default: 32)')
     parser.add_argument('--clip-param', type=float, default=0.2,
                         help='ppo clip parameter (default: 0.2)')
-    parser.add_argument('--sil-update-ratio', type=float, default=1.0,
-                        help='sil off-policy updates per on-policy updates (default: 1.0)')
-    parser.add_argument('--sil-epochs', type=int, default=1,
-                        help='number of sil epochs (default: 1)')
-    parser.add_argument('--sil-batch-size', type=int, default=80,
-                        help='sil batch size (default: 80)')
-    parser.add_argument('--sil-entropy-coef', type=float, default=0.01,
-                        help='entropy term coefficient (default: 0.0)')
-    parser.add_argument('--sil-value-loss-coef', type=float, default=0.01,
-                        help='value loss coefficient (default: 0.01)')
     parser.add_argument('--num-stack', type=int, default=1,
                         help='number of frames to stack (default: 1)')
     parser.add_argument('--log-interval', type=int, default=10,
                         help='log interval, one log per n updates (default: 10)')
     parser.add_argument('--save-interval', type=int, default=100,
                         help='save interval, one save per n updates (default: 100)')
-    parser.add_argument('--eval-interval', type=int, default=1000,
+    parser.add_argument('--eval-interval', type=int, default=1,
                         help='eval interval, one eval per n updates (default: None)')
     parser.add_argument('--num-frames', type=int, default=5e7,
                         help='number of frames to train (default: 5e7)')
@@ -69,8 +59,6 @@ def get_args():
                         help='disables CUDA training')
     parser.add_argument('--add-timestep', action='store_true', default=False,
                         help='add timestep to observations')
-    parser.add_argument('--recurrent-policy', action='store_true', default=False,
-                        help='use a recurrent policy')
     parser.add_argument('--no-norm', action='store_true', default=False,
                         help='disables normalization')
     parser.add_argument('--load-path', default='./trained_models/a2c/PommeFFACompetitionFast-v0.pt',

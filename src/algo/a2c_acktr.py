@@ -36,7 +36,7 @@ class A2C_ACKTR():
             else:
                 self.scheduler = None
 
-    def update(self, rollouts, update_index, replay=None):
+    def update(self, rollouts, update_index):
         if self.scheduler is not None:
             self.scheduler.step(update_index)
 
