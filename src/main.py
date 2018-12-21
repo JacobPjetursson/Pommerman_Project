@@ -139,6 +139,11 @@ def main():
             for info in infos:
                 if 'episode' in info.keys():
                     rew = info['episode']['r']
+					length = info['episode']['l']
+                    if rew < 0:
+                        rew = rew * (1 + (length / 800))
+                    if rew > 0:
+                    	rew = rew * (1 + (800 - length) / 800)
                     episode_rewards.append(rew)
 
             # If done then clean the history of observations.

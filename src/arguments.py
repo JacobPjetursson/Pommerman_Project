@@ -15,7 +15,7 @@ def get_args():
                         help='RMSprop optimizer epsilon (default: 1e-5)')
     parser.add_argument('--alpha', type=float, default=0.99,
                         help='RMSprop optimizer apha (default: 0.99)')
-    parser.add_argument('--gamma', type=float, default=0.99,
+    parser.add_argument('--gamma', type=float, default=0.90,
                         help='discount factor for rewards (default: 0.99)')
     parser.add_argument('--use-gae', action='store_true', default=False,
                         help='use generalized advantage estimation')

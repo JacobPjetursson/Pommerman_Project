@@ -125,9 +125,9 @@ def featurize(obs, agent_id, config):
     self_can_kick = make_np_float([obs["can_kick"]])
 
     powerups = ob_hot[:, :, 6] * 0.5 + ob_hot[:, :, 7] * 0.66667 + ob_hot[:, :, 8]
-
-    #ob_hot[:, :, 0] = ob_hot[:, :, 0] # We don't have fog 
-    #ob_hot[:, :, 1] = ob_hot[:, :, 1] 
+    
+    ob_hot[:, :, 0] = ob_hot[:, :, 0] + ob_hot[:, :, 5] + ob_hot[:, :, 6] + ob_hot[:, :, 7] + ob_hot[:, :, 8]
+    ob_hot[:, :, 1] = ob_hot[:, :, 1]  + ob_hot[:, :, 2]
     #ob_hot[:, :, 2] * 0.5
     ob_hot[:, :, 3] = ob_hot[:, :, 3] * self_can_kick
     ob_hot[:, :, 4] = obs_blast_map
