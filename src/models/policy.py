@@ -41,7 +41,6 @@ class Policy(nn.Module):
         return value
 
     def evaluate_actions(self, inputs, rnn_hxs, masks, action):
-        print("eval actions")
         value, actor_features, rnn_hxs = self.net(inputs, rnn_hxs, masks)
         dist = torch.distributions.Categorical(probs=actor_features)
 

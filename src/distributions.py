@@ -34,6 +34,8 @@ class Categorical(nn.Module):
     def __init__(self, num_inputs, num_outputs):
         super(Categorical, self).__init__()
 
+        print("Categorical")
+
         init_ = lambda m: init(m,
               nn.init.orthogonal_,
               lambda x: nn.init.constant_(x, 0),

@@ -54,10 +54,14 @@ class PPO():
                 data_generator = rollouts.feed_forward_generator(
                     advantages, self.num_mini_batch)
 
+            print(len(advantages))
+
             for sample in data_generator:
                 obs_batch, recurrent_hidden_states_batch, actions_batch, \
                    return_batch, masks_batch, old_action_log_probs_batch, \
                         adv_targ = sample
+
+                print(obs_batch)
 
                 # Reshape to do in a single forward pass for all steps
                 values, action_log_probs, dist_entropy, states = self.actor_critic.evaluate_actions(

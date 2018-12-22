@@ -4,7 +4,6 @@ python main.py --use-gae --env-name PommeFFACompetitionFast-v0 --no-norm --seed 
 
 python main.py --use-gae --seed 42 --algo ppo
 
-
 python main.py --use-gae --seed 42 --algo a2c
 
 python main.py
