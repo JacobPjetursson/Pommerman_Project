@@ -197,7 +197,7 @@ def main():
                          np.max(episode_rewards), dist_entropy,
                          value_loss, action_loss), end=', ' if other_metrics else '\n')
             with open("train_results_" + args.algo + ".txt", "a+") as res_file:
-                to_print = "{},{}".format(total_num_steps, np.mean(episode_rewards))
+                to_print = "{},{}\n".format(total_num_steps, np.mean(episode_rewards))
                 res_file.write(to_print)
 
         if args.eval_interval and len(episode_rewards) > 1 and j > 0 and j % args.eval_interval == 0:
@@ -220,7 +220,7 @@ def main():
                     if 'episode' in info.keys():
                         eval_episode_rewards.append(info['episode']['r'])
             with open("eval_results_" + args.algo + ".txt", "a+") as res_file:
-                to_print = "{},{}".format(total_num_steps, np.mean(eval_episode_rewards))
+                to_print = "{},{}\n".format(total_num_steps, np.mean(eval_episode_rewards))
                 res_file.write(to_print)
             print("Evaluation using {} episodes: mean reward {:.5f}\n".format(len(eval_episode_rewards),
                                                                               np.mean(eval_episode_rewards)))
