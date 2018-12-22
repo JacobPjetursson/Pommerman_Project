@@ -84,7 +84,11 @@ def main():
 	if args.load_path and load:
 		print("Loading in previous model")
 		try:
-			state_dict, ob_rms = torch.load(args.load_path)
+			path_ = "./trained_models/a2c/PommeFFACompetitionFast-v0.pt"
+			if args.algo.startswith('ppo'):
+				path_ = "./trained_models/ppo/PommeFFACompetitionFast-v0.pt"
+#			state_dict, ob_rms = torch.load(args.load_path)
+			state_dict, ob_rms = torch.load(path_)
 			actor_critic.load_state_dict(state_dict)
 		except:
 			print("Wrong path!")
@@ -212,8 +216,10 @@ def main():
 				for info in infos:
 					if 'episode' in info.keys():
 						eval_episode_rewards.append(info['episode']['r'])
-			print(" Evaluation using {} episodes: mean reward {:.5f}\n".
-				format(len(eval_episode_rewards), np.mean(eval_episode_rewards)))
+			with open("results_"+args.algo+".txt", "a+") as res_file:
+				to_print = "{},{}".format(len(eval_episode_rewards), np.mean(eval_episode_rewards))
+				res_file.write(to_print)
+			print("Evaluation using {} episodes: mean reward {:.5f}\n".format(len(eval_episode_rewards), np.mean(eval_episode_rewards)))
 
 
 if __name__ == "__main__":

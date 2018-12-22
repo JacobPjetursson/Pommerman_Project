@@ -126,9 +126,12 @@ def featurize(obs, agent_id, config):
 
     powerups = ob_hot[:, :, 6] * 0.5 + ob_hot[:, :, 7] * 0.66667 + ob_hot[:, :, 8]
     
-    ob_hot[:, :, 0] = ob_hot[:, :, 0] + ob_hot[:, :, 5] + ob_hot[:, :, 6] + ob_hot[:, :, 7] + ob_hot[:, :, 8]
+    # Where we are not physically blocked, 0 = nothing, 4 = flame, 5 = fog, 6,7,8 = powerups
+    ob_hot[:, :, 0] = ob_hot[:, :, 0] + ob_hot[:, :, 4] + ob_hot[:, :, 5] + ob_hot[:, :, 6] + ob_hot[:, :, 7] + ob_hot[:, :, 8]
+    # Walls 1 = rigid, 2 = wood
     ob_hot[:, :, 1] = ob_hot[:, :, 1]  + ob_hot[:, :, 2]
-    #ob_hot[:, :, 2] * 0.5
+    # We keep 2 so we know where destroyable walls are
+    # 3 is replaced with kickable bombs
     ob_hot[:, :, 3] = ob_hot[:, :, 3] * self_can_kick
     ob_hot[:, :, 4] = obs_blast_map
     ob_hot[:, :, 5] = powerups

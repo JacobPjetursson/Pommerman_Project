@@ -17,9 +17,9 @@ import time
 
 class run_search_agent():
 	agent_list = [
-		agents.PlayerAgent(),
-		agents.PlayerAgent(),
-		agents.PlayerAgent(),
+		agents.SimpleAgent(),
+		agents.SimpleAgent(),
+		agents.SimpleAgent(),
 		SearchAgent.SearchAgent()  # BLACKMAN, TOP RIGTH CORNER
 	]
 

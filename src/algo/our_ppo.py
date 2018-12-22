@@ -82,10 +82,6 @@ class OUR_PPO():
                     old_action_log_probs_batch = torch.cat([old_action_log_probs_batch, old_action_log_probs_batch_t[i,:]])
                     adv_targ = torch.cat([adv_targ, adv_targ_t[i,:]])
 
-            #values, action_log_probs, dist_entropy, states = self.actor_critic.evaluate_actions(
-            #    obs_batch, recurrent_hidden_states_batch,
-            #    masks_batch, actions_batch)
-
             values, action_log_probs, dist_entropy, _ = self.actor_critic.evaluate_actions(
                 obs_batch.view(-1, *obs_shape),
                 recurrent_hidden_states_batch[0].view(-1, self.actor_critic.recurrent_hidden_state_size),

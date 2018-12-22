@@ -33,16 +33,16 @@ class SearchAgent(pommerman.agents.BaseAgent):
         obs_wood_wall = (obs["board"] == 2)
 
         # Board with passage 
-        obs_board_passage = np.logical_and(obs["board"] >= 5, obs["board"] <= 8) + (obs["board"] == 0)
-
-        #obs_board_passage = torch.FloatTensor((obs["board"] == 0).astype(int)) + torch.FloatTensor((obs["board"] == 5).astype(int)) + torch.FloatTensor((obs["board"] == 6).astype(int)) + torch.FloatTensor((obs["board"] == 7).astype(int)) + torch.FloatTensor((obs["board"] == 8).astype(int))
+        obs_board_passage = np.logical_and(obs["board"] >= 4, obs["board"] <= 8) + (obs["board"] == 0) 
 
         # Getting the blastmap
         #obs_board_flames = torch.FloatTensor((obs["board"] == 4).astype(int))
+        obs_board_flames = (obs["board"] == 4)
         obs_board_bombs_life = (obs["bomb_life"])
 
         obs_board_bombs_blast = (obs["bomb_blast_strength"])
-        obs_blast_map = self.get_blast_map(obs_board_bombs_blast, obs_board_bombs_life, obs_rigid_wall, obs_wood_wall)
+        obs_blast_map = self.get_blast_map_use(obs_board_bombs_blast, obs_board_bombs_life, obs_rigid_wall, obs_wood_wall, obs_board_flames)
+        #obs_blast_map = self.get_blast_map(obs_board_bombs_blast, obs_board_bombs_life, obs_rigid_wall, obs_wood_wall)
 
         del obs_board_bombs_life, obs_board_bombs_blast
 
@@ -126,6 +126,57 @@ class SearchAgent(pommerman.agents.BaseAgent):
             loc = (to_look_at1[i], to_look_at2[i])
             self.add_to_score(loc, temp_board_passage, action_score)
         return action_score
+
+
+    def get_blast_map_use(self, blast_strength, blast_life, wall_map, wood_wall_map, flames_map):
+        default_value = pommerman.constants.DEFAULT_BOMB_LIFE
+        # Større score = Større farer
+        blast_map = flames_map.copy() * (default_value + 1) #np.zeros((11, 11))   #flames * default_value
+
+        ys, xs = blast_strength.nonzero()
+
+        for i in range(len(ys)):
+            y = ys[i]
+            x = xs[i]
+            st = blast_strength[y, x]
+            st = int(st)
+            if st > 0:
+                y_start = max(y - (st - 1), 0)
+                y_end = min(y + st, 11)
+                x_start = max(x - (st - 1), 0)
+                x_end = min(x + st, 11)
+                value = (default_value - blast_life[y, x] + 1)
+
+                for i in reversed(range(y_start, y)):
+                    if (blast_map[i, x] < value):
+                        if wall_map[i, x]:
+                            break
+                        blast_map[i, x] = value
+                        if wood_wall_map[i, x]:
+                            break;
+                for i in range(y, y_end):
+                    if (blast_map[i, x] < value):  
+                        if wall_map[i, x]:
+                            break
+                        blast_map[i, x] = value
+                        if wood_wall_map[i, x]:
+                            break;
+                for i in reversed(range(x_start, x)):  
+                    if (blast_map[y, i] < value):
+                        if wall_map[y, i]:
+                            break
+                        blast_map[y, i] = value
+                        if wood_wall_map[y, i]:
+                            break;
+                for i in range(x, x_end):  
+                    if (blast_map[y, i] < value):
+                        if wall_map[y, i]:
+                            break
+                        blast_map[y, i] = value 
+                        if wood_wall_map[y, i]:
+                            break;
+
+        return blast_map #/ (default_value + 1)
 
 
     def get_blast_map(self, blast_strength, blast_life, wall_map, wood_wall_map):
@@ -245,15 +296,15 @@ class SearchAgent(pommerman.agents.BaseAgent):
         possible = [(pos1[i], pos2[i]) for i in range(len(pos1))]
 
         best_coor = me
-        best_score = new_map[int(best_coor[0]), int(best_coor[1])]
+        best_score = new_map[int(best_coor[0]), int(best_coor[1])] - enemy_score_normal
 
         if len(possible) > 0:
             for i in possible:
-                if new_map[int(i[0]), int(i[1])] >= best_score:
+                if new_map[int(i[0]), int(i[1])] - enemy_score_normal >= best_score:
                     best_coor = i
-                    best_score = new_map[int(i[0]), int(i[1])]
+                    best_score = new_map[int(i[0]), int(i[1])] - enemy_score_normal
 
-        if new_map[int(me[0]), int(me[1])] * bomb_ratio > best_score:
+        if new_map[int(me[0]), int(me[1])] - enemy_score_bomb > best_score:
             print("B", end="", flush=True)
             return 5
         if int(best_coor[0]) < me[0]:
