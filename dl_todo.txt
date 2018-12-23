@@ -1,13 +1,2 @@
-performance graf: transfer learning, fra hans til vores model
-
-network layer
-
-input channels
-
-a2c acktr
-
-sammenlign performance med forskellige modeller
-
-mængden af træning (antal timesteps/timer)
-
-comparison med andre modeller (Hvad med ingen deep learning?)
+graf med eval og train performance
+tabel over performance mod simple agent og random agent

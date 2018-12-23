@@ -5,8 +5,6 @@ import numpy as np
 import gym
 import random
 
-import SearchAgent_2 as SearchAgent
-
 
 DEFAULT_FEATURE_CONFIG = {
     'recode_agents': True,
@@ -257,7 +255,7 @@ def _ffa_partial_fast_env():
 
 def make_env(config):
     rand_int = random.randint(0, 3)
-    print("Create env, he start at: ", rand_int)
+    print("Create env, our agent starts at: ", rand_int)
     training_agent = TrainingAgent()
     agent_list = [
         pommerman.agents.SimpleAgent(),

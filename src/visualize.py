@@ -1,10 +1,5 @@
 import argparse
-import os
-import types
-
-import numpy as np
 import torch
-from helpers.vec_env.vec_normalize import VecNormalize
 from models.factory import create_policy
 from envs import make_vec_envs
 
@@ -24,8 +19,6 @@ parser.add_argument('--env-name', default='PommeFFACompetitionFast-v0',
                     help='environment to train on (default: PommeFFACompetitionFast-v0)')
 parser.add_argument('--load-path', default='trained_models/a2c/PommeFFACompetitionFast-v0.pt',
                     help='path to checkpoint file')
-parser.add_argument('--recurrent-policy', action='store_true', default=False,
-                    help='use a recurrent policy')
 parser.add_argument('--add-timestep', action='store_true', default=False,
                     help='add timestep to observations')
 parser.add_argument('--no-norm', action='store_true', default=True,
@@ -41,14 +34,12 @@ args.cuda = not args.no_cuda and torch.cuda.is_available()
 torch.set_num_threads(1)
 device = torch.device("cuda:0" if args.cuda else "cpu")
 
-###### Set to true if we want to show with the 
-
 
 def run_agent(args):
     num_env = 1
     env = make_vec_envs(args.env_name, args.seed + 1000,
                         num_env, gamma=None, no_norm=args.no_norm,
-                        num_stack=args.num_stack, log_dir=None, add_timestep=args.add_timestep,
+                        num_stack=args.num_stack, log_dir=None,
                         device=device, eval=True, allow_early_resets=False)
 
     # Get a render function
@@ -68,15 +59,10 @@ def run_agent(args):
     # We need to use the same statistics for normalization as used in training
     state_dict, ob_rms = torch.load(args.load_path)
 
-    # FIXME this is very specific to Pommerman env right now
     actor_critic = create_policy(
         env.observation_space,
-        env.action_space,
-        name='pomm',
         nn_kwargs={
-            #'conv': 'conv3',
             'batch_norm': True,
-            'recurrent': args.recurrent_policy,
             'hidden_size': 512,
         },
         train=False)
@@ -84,7 +70,6 @@ def run_agent(args):
     actor_critic.load_state_dict(state_dict)
     actor_critic.to(device)
 
-    recurrent_hidden_states = torch.zeros(num_env, actor_critic.recurrent_hidden_state_size).to(device)
     masks = torch.zeros(num_env, 1).to(device)
 
     obs = env.reset()
@@ -112,8 +97,8 @@ def run_agent(args):
     while True:
         step = step + 1
         with torch.no_grad():
-            value, action, _, recurrent_hidden_states = actor_critic.act(
-                obs, recurrent_hidden_states, masks, deterministic=True)
+            value, action, _ = actor_critic.act(
+                obs, masks, deterministic=True)
 
         obs, reward, done, _ = env.step(action)
 

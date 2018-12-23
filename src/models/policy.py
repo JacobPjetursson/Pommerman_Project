@@ -3,30 +3,20 @@ import torch.nn as nn
 
 
 class Policy(nn.Module):
-    def __init__(self, net, action_space):
+    def __init__(self, net):
         super(Policy, self).__init__()
         assert isinstance(net, torch.nn.Module)
         self.net = net
 
-
-    @property
-    def is_recurrent(self):
-        return self.net.is_recurrent
-
-    @property
-    def recurrent_hidden_state_size(self):
-        """Size of rnn_hx."""
-        return self.net.recurrent_hidden_state_size
-
-    def forward(self, inputs, rnn_hxs, masks):
+    def forward(self, inputs, masks):
         raise NotImplementedError
 
-    def act(self, inputs, rnn_hxs, masks, deterministic=False):
-        value, actor_features, rnn_hxs = self.net(inputs, rnn_hxs, masks)
+    def act(self, inputs, masks, deterministic=False):
+        value, actor_features = self.net(inputs, masks)
         dist = torch.distributions.Categorical(probs=actor_features)
 
         if deterministic:
-            action = dist.probs.argmax(dim=1, keepdim=True) # mode
+            action = dist.probs.argmax(dim=1, keepdim=True)  # mode
         else:
             action = dist.sample().unsqueeze(-1)
 
@@ -34,20 +24,20 @@ class Policy(nn.Module):
 
         _ = dist.entropy().mean()
 
-        return value, action, action_log_probs, rnn_hxs
+        return value, action, action_log_probs
 
-    def get_value(self, inputs, rnn_hxs, masks):
-        value, _, _ = self.net(inputs, rnn_hxs, masks)
+    def get_value(self, inputs, masks):
+        value, _ = self.net(inputs, masks)
         return value
 
-    def evaluate_actions(self, inputs, rnn_hxs, masks, action):
-        value, actor_features, rnn_hxs = self.net(inputs, rnn_hxs, masks)
+    def evaluate_actions(self, inputs, masks, action):
+        value, actor_features = self.net(inputs, masks)
         dist = torch.distributions.Categorical(probs=actor_features)
 
         action_log_probs = dist.log_prob(action.squeeze(-1)).unsqueeze(-1)
         dist_entropy = dist.entropy().mean()
 
-        return value, action_log_probs, dist_entropy, rnn_hxs
+        return value, action_log_probs, dist_entropy
 
 
 

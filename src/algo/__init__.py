@@ -1,4 +1,3 @@
-from .a2c_acktr import A2C_ACKTR
+from .a2c import A2C
 from .ppo import PPO
 from .our_ppo import OUR_PPO
-from .sil import SIL

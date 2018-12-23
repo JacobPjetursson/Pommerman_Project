@@ -57,8 +57,6 @@ def get_args():
                         help='directory to save agent logs (default: ./trained_models/)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
-    parser.add_argument('--add-timestep', action='store_true', default=False,
-                        help='add timestep to observations')
     parser.add_argument('--no-norm', action='store_true', default=False,
                         help='disables normalization')
     parser.add_argument('--load-path', default='./trained_models/a2c/PommeFFACompetitionFast-v0.pt',

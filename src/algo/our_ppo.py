@@ -50,12 +50,8 @@ class OUR_PPO():
         action_shape = rollouts.actions.size()[-1]
 
         for e in range(self.ppo_epoch):
-            if self.actor_critic.is_recurrent:
-                data_generator = rollouts.recurrent_generator(
-                    advantages, self.num_mini_batch)
-            else:
-                data_generator = rollouts.feed_forward_generator(
-                    advantages, self.num_mini_batch)
+            data_generator = rollouts.feed_forward_generator(
+                advantages, self.num_mini_batch)
 
             length = 10
 
@@ -63,7 +59,6 @@ class OUR_PPO():
             obs_list = []
             obs_batch = torch.FloatTensor().cuda() #length, 1, 1092).cuda()
             #obs_batch = torch.FloatTensor(length).cuda()
-            recurrent_hidden_states_batch = torch.FloatTensor().cuda()#length, 1092).cuda()
             actions_batch = torch.LongTensor().cuda()
             return_batch = torch.FloatTensor().cuda()
             masks_batch = torch.FloatTensor().cuda()
@@ -71,10 +66,9 @@ class OUR_PPO():
             adv_targ = torch.FloatTensor().cuda()
 
             for sample in data_generator:
-                obs_batch_t, recurrent_hidden_states_batch_t, actions_batch_t, return_batch_t, masks_batch_t, old_action_log_probs_batch_t, adv_targ_t = sample
+                obs_batch_t, actions_batch_t, return_batch_t, masks_batch_t, old_action_log_probs_batch_t, adv_targ_t = sample
                 for i in range(obs_batch_t.shape[0]):
                     obs_batch = torch.cat([obs_batch, obs_batch_t[i,:]])
-                    recurrent_hidden_states_batch = torch.cat([recurrent_hidden_states_batch, recurrent_hidden_states_batch_t[i,:]])
                     actions_batch = torch.cat([actions_batch, actions_batch_t[i,:]])
                     return_batch = torch.cat([return_batch, return_batch_t[i,:]])
                     masks_batch = torch.cat([masks_batch, masks_batch_t[i,:]])
@@ -84,7 +78,6 @@ class OUR_PPO():
 
             values, action_log_probs, dist_entropy, _ = self.actor_critic.evaluate_actions(
                 obs_batch.view(-1, *obs_shape),
-                recurrent_hidden_states_batch[0].view(-1, self.actor_critic.recurrent_hidden_state_size),
                 masks_batch.view(-1, 1), actions_batch.view(-1, action_shape))
 
 
