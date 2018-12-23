@@ -14,7 +14,7 @@ from models import create_policy
 from rollout_storage import RolloutStorage
 
 args = get_args()
-load = False
+load = True
 
 assert args.algo in ['a2c', 'ppo']
 
