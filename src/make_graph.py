@@ -20,17 +20,6 @@ with open("train_results_a2c.txt", "r") as f:
             mean_res = 0
         i += 1
 
-fig, ax = plt.subplots(figsize=(12, 7))
-ax.plot(train_timesteps, train_results)
-plt.xticks(rotation=90)
-ax.set_xticks(ax.get_xticks()[::10])
-ax.set_xlabel("Timesteps")
-plt.gcf().subplots_adjust(bottom=0.17)
-ax.set_ylabel("Reward")
-fig.suptitle("Train results")
-plt.savefig("results/train_results.png")
-plt.show()
-
 with open("eval_results_a2c.txt", "r") as f:
     for line in f.readlines():
         timestep, result = line.split(",")
@@ -41,12 +30,14 @@ with open("eval_results_a2c.txt", "r") as f:
         eval_results.append(result)
 
 fig, ax = plt.subplots(figsize=(12, 7))
-ax.plot(eval_timesteps, eval_results)
+ax.plot(train_timesteps, train_results, label="Train")
+ax.plot(train_timesteps, eval_results, label="Eval")
+plt.legend(fontsize="x-large")
 plt.xticks(rotation=90)
 ax.set_xticks(ax.get_xticks()[::10])
 ax.set_xlabel("Timesteps")
 plt.gcf().subplots_adjust(bottom=0.17)
 ax.set_ylabel("Reward")
-fig.suptitle("Evaluation results")
-plt.savefig("results/eval_results.png")
+fig.suptitle("Results")
+fig.savefig("results/results.png")
 plt.show()
