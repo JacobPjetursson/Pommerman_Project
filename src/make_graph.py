@@ -6,7 +6,7 @@ train_results = []
 eval_timesteps = []
 eval_results = []
 train_obs_skip = 100
-with open("train_results_a2c.txt", "r") as f:
+with open("train_results_a2c.txt", "r+") as f:
     mean_res = 0.0
     i = 0
     for line in f.readlines():
@@ -20,7 +20,7 @@ with open("train_results_a2c.txt", "r") as f:
             mean_res = 0
         i += 1
 
-with open("eval_results_a2c.txt", "r") as f:
+with open("eval_results_a2c.txt", "r+") as f:
     for line in f.readlines():
         timestep, result = line.split(",")
 
