@@ -2,7 +2,7 @@
 
 Our code is in the src folder
 
-The game given to us is found in the game folder
+The Pommerman game itself (given to us) is found in the game folder
 
 ## Running the code
 There is a jupyter notebook file in the src folder for easily running the code. 
