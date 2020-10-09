@@ -10,3 +10,6 @@ Go to [https://github.com/MultiAgentLearning/playground/tree/master/docs] and fo
 There is a jupyter notebook file in the src folder for running the code. 
 From here it is possible to both train a new model and visualize a pretrained one.
 It takes around 20 hours of training on a decent GPU to see real progress.
+
+## Picture of game
+[!Game](https://github.com/JacobPjetursson/Pommerman_Project/blob/master/pommerman.png)
