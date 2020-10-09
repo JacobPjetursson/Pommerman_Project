@@ -12,4 +12,4 @@ From here it is possible to both train a new model and visualize a pretrained on
 It takes around 20 hours of training on a decent GPU to see real progress.
 
 ## Picture of game
-[!Game](https://github.com/JacobPjetursson/Pommerman_Project/blob/master/pommerman.png)
+![game](https://github.com/JacobPjetursson/Pommerman_Project/blob/master/pommerman.png)
